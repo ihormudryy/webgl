@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+
+<html lang="en-US">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="Content-Style-Type" content="text/css">
+    <title>Ihor Mudryy's Sandbox</title>
+    <style type="text/css">
+      body{
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      };
+      #webgl{
+        width: 100%;
+        height: 100%;
+        font-size: 48px;
+      }
+      #selection{
+        bottom: 40px;
+        left: 10px;
+        position: absolute
+      }
+      #select_button{
+        bottom: 10px;
+        left: 10px;
+        position: absolute;
+      }
+      #game_mode{
+        bottom: 10px;
+        left: 150px;
+        position: absolute;
+      }
+      #free_camera{
+        bottom: 10px;
+        left: 250px;
+        position: absolute;
+      }
+      #loading{
+        background: #FFFFFF url('loading.gif') no-repeat fixed center;
+        width: 100%;
+        height: 100%;
+        z-index: 100000;
+        position: absolute;
+        opacity: .3;
+      }
+      
+      #video {
+        display: none;
+      }
+    </style>
+</head>
+
+<script src="libs/require.js"></script>
+<script src="libs/DAT.GUI.min.js"></script>
+<script src="libs/stats.js"></script>
+<script src="src/resources.js"></script>
+
+<body oncontextmenu="return false">
+  <div id="loading"></div>
+  <video id="video">
+  Your browser doesn't appear to support the HTML5 <code>&lt;video&gt;</code> element.
+  </video>
+  <div id = "fps"></div>
+  <select id="selection"></select>
+  <button id="select_button">Select</button>
+  <button id="game_mode">Game Mode</button>
+  <button id="free_camera">Free Camera Mode</button>
+</body>
+</html>
+
