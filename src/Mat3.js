@@ -1,13 +1,13 @@
-var engine = engine || {};
+var Engine = Engine || {};
 
 'use strict';
 
-engine.prototype.Mat3 = function () {
+Engine.prototype.Mat3 = function () {
 
   var Mat3 = {};
 
   Mat3.create = function (mat) {
-    var dest = new MatrixArray(9);
+    var dest = new Float32Array(9);
     
     if (mat) {
       dest[0] = mat[0];
@@ -19,6 +19,16 @@ engine.prototype.Mat3 = function () {
       dest[6] = mat[6];
       dest[7] = mat[7];
       dest[8] = mat[8];
+    } else {
+      dest[0] = 1;
+      dest[1] = 0;
+      dest[2] = 0;
+      dest[3] = 0;
+      dest[4] = 1;
+      dest[5] = 0;
+      dest[6] = 0;
+      dest[7] = 0;
+      dest[8] = 1;
     }
 
     return dest;
@@ -129,6 +139,36 @@ engine.prototype.Mat3 = function () {
     dest[6] = mat[2];
     dest[7] = mat[5];
     dest[8] = mat[8];
+    return dest;
+  };
+  
+  Mat3.rotFromMat4 = function(mat4, dest){
+    var dest = (dest) ? dest : this.create();
+    var a00, a01, a02, a10, a11, a12, a20, a21, a22, b01, b11, b21, d, id, src;
+    src = mat4;
+    a00 = src[0];
+    a01 = src[1];
+    a02 = src[2];
+    a10 = src[4];
+    a11 = src[5];
+    a12 = src[6];
+    a20 = src[8];
+    a21 = src[9];
+    a22 = src[10];
+    b01 = a22 * a11 - a12 * a21;
+    b11 = -a22 * a10 + a12 * a20;
+    b21 = a21 * a10 - a11 * a20;
+    d = a00 * b01 + a01 * b11 + a02 * b21;
+    id = 1 / d;
+    dest[0] = b01 * id;
+    dest[3] = (-a22 * a01 + a02 * a21) * id;
+    dest[6] = (a12 * a01 - a02 * a11) * id;
+    dest[1] = b11 * id;
+    dest[4] = (a22 * a00 - a02 * a20) * id;
+    dest[7] = (-a12 * a00 + a02 * a10) * id;
+    dest[2] = b21 * id;
+    dest[5] = (-a21 * a00 + a01 * a20) * id;
+    dest[8] = (a11 * a00 - a01 * a10) * id;
     return dest;
   };
   

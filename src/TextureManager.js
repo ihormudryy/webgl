@@ -1,8 +1,8 @@
-var engine = engine || {};
+var Engine = Engine || {};
 
 'use strict';
 
-engine.prototype.TextureManager = function (gl) {
+Engine.prototype.TextureManager = function (gl) {
   var textureManager = {};
   var gl = gl;
   textureManager.pendingDowloads = 0;
@@ -69,7 +69,7 @@ engine.prototype.TextureManager = function (gl) {
     var framebuffer = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
     framebuffer.width = 1024;
-    framebuffer.height = 512;
+    framebuffer.height = 1024;
     framebuffer.textures = new Array();
     
     var renderbuffer = gl.createRenderbuffer();

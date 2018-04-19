@@ -1,18 +1,20 @@
-var engine = engine || {};
+var Engine = Engine || {};
 
 'use strict';
 
-engine.prototype.ControlManager = function () {
+Engine.prototype.ControlManager = function () {
   var controlManager = {};
 
-  controlManager.bindCameraControls = function (engine) { 
-    var camera = engine.camera;
+  controlManager.bindCameraControls = function (camera) { 
+    var camera = camera;
     var canvas = document.getElementById('webgl');
+    // var canvas = document;
     var shift = false;
     var original = true;
     
-    canvas.addEventListener('mousewheel', function(evt){
-      camera.setZ(evt.wheelDelta * .01);
+    var mousewheelevt = (/Firefox/i.test(navigator.userAgent)) ? "DOMMouseScroll" : "mousewheel";
+    canvas.addEventListener(mousewheelevt, function(evt){
+      camera.setZ( (evt.wheelDelta) ? evt.wheelDelta * .01 : -evt.detail );
     }, false); 
     
     var mousedown = false;
@@ -107,85 +109,52 @@ engine.prototype.ControlManager = function () {
       if (evt.keyCode === 16)
         shift = false; 
     });
-    
-    var submit = document.getElementById('select_button');
-    submit.addEventListener('click', function(){
-      if (engine.dataManager.video)
-        engine.dataManager.video.src = "";
-      engine.dataManager.selectModel(function(args){
-        engine.rendererManager.remove();
-        engine.rendererManager.add(args); 
-      });
-    }, false);
-    
-    var gameMode = document.getElementById('game_mode');
-    gameMode.addEventListener('click', function(){
-      engine.rendererManager.mvMatrixInit();
-      engine.physic.setGameMode();
-      engine.rendererManager.start();
-    }, false);
-    
-    var freeCamMode = document.getElementById('free_camera');
-    freeCamMode.addEventListener('click', function(){
-      engine.rendererManager.mvMatrixInit();
-      engine.rendererManager.remove();
-      engine.physic.setFreeCameraMode();
-    }, false);
-    
+
     window.onresize = function(){
-      engine.shaderManager.gl.viewportWidth = window.innerWidth;
-      engine.shaderManager.gl.viewportHeight = window.innerHeight;
-      engine.shaderManager.gl.canvas.setAttribute('width', window.innerWidth + 'px;');
-      engine.shaderManager.gl.canvas.setAttribute('height', window.innerHeight + 'px;');
+      _engine.shaderManager.gl.viewportWidth = window.innerWidth;
+      _engine.shaderManager.gl.viewportHeight = window.innerHeight;
+      _engine.shaderManager.gl.canvas.setAttribute('width', window.innerWidth + 'px;');
+      _engine.shaderManager.gl.canvas.setAttribute('height', window.innerHeight + 'px;');
     }
   };
   
-  controlManager.completeSelectList = function(list){
-    var select = document.getElementById('selection');
-    for (var i in list){
-      var name = list[i].split('/');
-      var index = name.length - 1;
-      var option = document.createElement('option');
-      option.value = name[index];
-      option.innerHTML = name[index];
-      if (i == 0) option.selected = true;
-      select.appendChild(option);
-    }        
-  }
+  var key_down = new Array(256);
+  for(var key=0; key<256; key++) key_down[key] = false;
   
-  controlManager.bindObjectControls = function(rotation, movement){
+  controlManager.bindObjectControls = function(object){
     document.addEventListener('keydown', function(evt){
-      /*
-      if (evt.keyCode === 37)
-        rotation[1] -= 1;
-      if (evt.keyCode === 39)
-        rotation[1] += 1;
-      if (evt.keyCode === 38)
-        rotation[0] -= 1;
-      if (evt.keyCode === 40)
-        rotation[0] += 1;
-      if (evt.keyCode === 190)
-        rotation[2] -= 1;
-      if (evt.keyCode === 191)
-        rotation[2] += 1;
-      */
-        
-      if (evt.keyCode === 81)
-        movement[2] -= 1;
-      if (evt.keyCode === 65)
-        movement[2] += 1;
-      if (evt.keyCode === 87)
-        movement[1] -= 1;
-      if (evt.keyCode === 83)
-        movement[1] += 1;
-      if (evt.keyCode === 69)
-        movement[0] -= 1;
-      if (evt.keyCode === 68)
-        movement[0] += 1;
-       
+      if (evt.keyCode >= 0 && evt.keyCode <= 255) key_down[evt.keyCode] = true;
+      if (key_down[16]){
+        if (key_down[81])
+          object.tilt -= 1;
+        if (key_down[65])
+          object.tilt += 1;
+        if (key_down[87])
+          object.heading -= 1;
+        if (key_down[83])
+          object.heading += 1;
+        if (key_down[69])
+          object.roll -= 1;
+        if (key_down[68])
+          object.roll += 1;
+      } else {
+        if (evt.keyCode === 81)
+          object.pos.z -= 1;
+        if (evt.keyCode === 65)
+          object.pos.z += 1;
+        if (evt.keyCode === 87)
+          object.pos.y -= 1;
+        if (evt.keyCode === 83)
+          object.pos.y += 1;
+        if (evt.keyCode === 69)
+          object.pos.x -= 1;
+        if (evt.keyCode === 68)
+          object.pos.x += 1;
+       }
     });   
     
     document.addEventListener('keyup', function(evt){
+      if (evt.keyCode >= 0 && evt.keyCode <= 255) key_down[evt.keyCode] = false;
     });
   }
 

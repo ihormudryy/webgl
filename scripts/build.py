@@ -4,16 +4,17 @@ import string
 from xml.dom.minidom import parse
 
 def mapBuild():
-    destDir = "compiled/src/"
+    workspace = os.getenv("WORKSPACE")
+    destDir = os.path.join(workspace, "compiled/src/")
     
     if not os.path.exists(destDir):
-        os.makedirs(destDir)
+        os.makedirs(os.path.join(destDir, "shaders"))
 
     fullName = 'myEngine.max.js'
     minName = 'myEngine.min.js'
     gzName = 'myEngine.min.gz'
 
-    srcDir = "../src/"
+    srcDir = os.path.join(workspace, "src/")
 
     jsFiles = [
       "Start.js",
@@ -73,8 +74,8 @@ def mapBuild():
            copyright + text) )
 
     f.close()
-    
-    os.system('java -jar "' + realPath('yuicompressor.jar') + '" --type=js "' + realPath(destDir + fullName) + '" -o "' + realPath(destDir  + minName) + '"')
+    os.system('wget https://github.com/yui/yuicompressor/releases/download/v2.4.8/yuicompressor-2.4.8.jar')
+    os.system('java -jar yuicompressor-2.4.8.jar --type=js "' + realPath(destDir + fullName) + '" -o "' + realPath(destDir  + minName) + '"')
     
     min = open(realPath(destDir + minName), 'rb')
     min_text = copyright + min.read()
