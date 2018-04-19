@@ -1,4 +1,4 @@
 node('master'){
-	sh(script: "python script/build.py")
+	sh(script: "python scripts/build.py")
 	archiveArtifacts artifacts: "*"
 }
