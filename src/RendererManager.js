@@ -1,117 +1,79 @@
-var engine = engine || {};
+var Engine = Engine || {};
 
 'use strict';
 
-engine.prototype.RendererManager = function (_engine) {
-    
-    var rendererManager = {};
-    var shaderManager = _engine.shaderManager;
+Engine.prototype.RendererManager = function ( _engine ) {
+
     var gl = _engine.shaderManager.gl;
-    var controlManager = _engine.controlManager;
-    var dataManager = _engine.dataManager;
-    var textureManager = _engine.textureManager;
-    var physic = _engine.physic;
     var mat3 = _engine.mat3;
     var mat4 = _engine.mat4;
     var vec3 = _engine.vec3;
-    var camera = _engine.camera;
-    var objects = [];
     var mvMatrixStack = [];
     var mvMatrix = mat4.create();
     var pMatrix = mat4.create(); 
     var lOrigMatrix = mat4.create();
     var lDirMatrix = mat4.create();
+    var shaders = _engine.shaderManager.shaders;
+    var physic = _engine.physic;
+    var camera = _engine.camera;
+    var controlManager = _engine.controlManager;
+    var dataManager = _engine.dataManager;
+    var textureManager = _engine.textureManager;
+    var objectControl = _engine.objectControl;
+    var datGUI = _engine.datGUI;
+    var FPS = _engine.FPS;
+    var program;
+    
+    function rendererManager(){
+      var that = this;
+      that.stereoscopicMode = false;
+      that.pixelsInCm = 38;
+      that.interocular = 6.5;
+    }
     
     /* 
-      All modification regarding adding or removing objects at the start are made here 
+      All modification regarding adding or removing rootObject at the start are made here 
     */
-    rendererManager.start = function(src){
+    rendererManager.prototype.start = function(src){
       var that = this;
-      if (physic.mode == 'game'){
-        var groundSurface = dataManager.generateSurface();
-        that.add(groundSurface); 
-        var sky = dataManager.generateSky();
-        that.add(sky); 
-      }
-      if (!that.loadedModel){
-        dataManager.selectModel(function(args){
-          //var groundSurface = dataManager.generateSurface();
-          //that.add(groundSurface);
-          //var cube = dataManager.generateCube();
-          //that.add(cube);
-          //var video = dataManager.addVideo();
-          //that.add(video);
-          //that.terrain = dataManager.addTerrain();
-          that.add(args); 
-        });
-      } 
+      dataManager.initialize();
+      
+      var requestAnimationFrame = window.requestAnimationFrame || 
+                                  window.mozRequestAnimationFrame ||
+                                  window.webkitRequestAnimationFrame ||
+                                  window.msRequestAnimationFrame || 
+                                  function(callback){
+                                    window.setTimeout(callback, 1000 / 60);
+                                  };
+                              
+
+      (function animationFrame(){
+        that.render();
+        FPS.update();   
+        dataManager.checkLoaderVisibility();    
+        requestAnimationFrame( animationFrame );
+      })();
     }
     
-    rendererManager.add = function (bufferPool) {
-      if (bufferPool) objects.push(bufferPool);
-    }
-    
-    rendererManager.mvMatrixInit = function() {
+    rendererManager.prototype.mvMatrixInit = function() {
       mvMatrix = mat4.create();
     }
     
-    rendererManager.mvPushMatrix = function() {
+    rendererManager.prototype.mvPushMatrix = function() {
       var copy = mat4.create(mvMatrix);
       mvMatrixStack.push(copy);
       mat4.identity(mvMatrix);
     }
 
-    rendererManager.mvPopMatrix = function() {
+    rendererManager.prototype.mvPopMatrix = function() {
       if (mvMatrixStack.length !== 0) {
         mvMatrix = mvMatrixStack.pop();
       }
-    } 
-    
-    rendererManager.remove = function (obj) {
-      var that = this;
-      if (obj){ 
-        for (var i in objects) {
-          if (obj === objects[i]){
-            if (objects[i].vertexBuffer) gl.deleteBuffer(objects[i].vertexBuffer);
-            if (objects[i].textureBuffer) gl.deleteBuffer(objects[i].textureBuffer);
-            if (objects[i].normalsBuffer) gl.deleteBuffer(objects[i].normalsBuffer);
-            for (var t in objects[i].texture){
-              objects[i].texture[t].status = 'removed';
-              gl.deleteTexture(objects[i].texture[t])
-            }
-            objects.splice(i, 1);
-          }
-        }
-      } else {
-        var index = dataManager.staticResources;
-        objects[index].status = 'removed';
-        if (objects[index].vertexBuffer) gl.deleteBuffer(objects[index].vertexBuffer);
-        if (objects[index].textureBuffer) gl.deleteBuffer(objects[index].textureBuffer);
-        if (objects[index].normalsBuffer) gl.deleteBuffer(objects[index].normalsBuffer);
-        for (var t in objects[index].textureAtlas){
-          objects[index].textureAtlas[t].gl_Texture.state = 'removed';
-          gl.deleteTexture(objects[index].textureAtlas[t].gl_Texture)
-        }
-        objects.splice(index, 1);
-      } 
-    };
-    
-    rendererManager.removeAllObjects = function(){
-      var that = this;
-      for (var i in objects) {
-        if (objects[i].vertexBuffer) gl.deleteBuffer(objects[i].vertexBuffer);
-        if (objects[i].textureBuffer) gl.deleteBuffer(objects[i].textureBuffer);
-        if (objects[i].normalsBuffer) gl.deleteBuffer(objects[i].normalsBuffer);
-        for (var t in objects[i].texture){
-          objects[i].texture[t].status = 'removed';
-          gl.deleteTexture(objects[i].texture[t])
-        }
-        objects.splice(i, 1);
-      }
-      delete that.loadedModel;
     }
     
-    rendererManager.resize = function(evt, height, width){
+    rendererManager.prototype.resize = function(evt, height, width){
+      var that = this;
+
       if (height){
         gl.canvas.height = height;
         gl.viewportHeight = height;
@@ -130,104 +92,23 @@ engine.prototype.RendererManager = function (_engine) {
       return;
     }
     
-    rendererManager.getCamera = function(logOnConsole){
-      if (logOnConsole){
-        console.log('screen:{')
-        for (var i in camera){
-          if (typeof camera[i] == 'object'){
-            console.log(i + ': {');
-            for (var j in camera[i])
-              console.log(' ' + j + ':' + camera[i][j] + ',');
-            console.log('},');
-          } else 
-            console.log(' ' + i + ':' + camera[i] + ',')
-        }
-        console.log('}');
-      }
-      return camera;
-    }
-    
-    rendererManager.setBlending = function (flag) {
+    rendererManager.prototype.setBlending = function( flag ) {
+      var that = this;
       if (flag) {
         gl.enable(gl.BLEND);
         gl.enable(gl.DEPTH_TEST);
-        gl.uniform1f(shaderManager.shaderProgram.uAlpha, camera.SRC_ALPHA);
+        that.setUniform("1f", "uAlpha", camera.getAttribute("SRC_ALPHA")); 
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         rendererManager.blending = true;
       } else {
         gl.disable(gl.BLEND);
-        gl.uniform1f(shaderManager.shaderProgram.uAlpha, 1);
+        that.setUniform("1f", "uAlpha", 1); 
         gl.enable(gl.DEPTH_TEST);
         rendererManager.blending = false;
       }
     }
-       
-    rendererManager.lighting = function(mlt){
-      var that = this;
-      var lightingDirection = [ 
-          camera.lightDirection.lightDirectionX,
-          camera.lightDirection.lightDirectionY,
-          camera.lightDirection.lightDirectionZ
-        ];
-      var a0 = camera.ambientColor[0] * .01;
-      var a1 = camera.ambientColor[1] * .01;
-      var a2 = camera.ambientColor[2] * .01;
-      var d0 = camera.pointLightingDiffuse[0] * .01;
-      var d1 = camera.pointLightingDiffuse[1] * .01;
-      var d2 = camera.pointLightingDiffuse[2] * .01;
-      var s0 = camera.specularColor[0] * .01;
-      var s1 = camera.specularColor[1] * .01;
-      var s2 = camera.specularColor[2] * .01;
-      
-      gl.uniform1i(shaderManager.shaderProgram.uUseLighting, camera.useLighting);
-      
-      gl.uniform1i(shaderManager.shaderProgram.uUseTextureAtlas, camera.showTextureMap);
-
-      gl.uniform3fv(shaderManager.shaderProgram.uPointLightingVector, lightingDirection); 
-      
-      gl.uniform1i(shaderManager.shaderProgram.uMaterialShininess, camera.materialShininess); 
-      
-      /* Set mlt properties */
-      if (mlt && camera.useSpecularMap){
-      
-        if (mlt.Ka){
-          var ambient = mlt.Ka;
-          gl.uniform3f(shaderManager.shaderProgram.uAmbientColor, ambient[0], ambient[1], ambient[2]);  
-        } else {
-          gl.uniform3f(shaderManager.shaderProgram.uAmbientColor, a0, a1, a2);  
-        }
-        
-        if (mlt.Ka){
-          var difuse = mlt.Kd;
-          gl.uniform3f(shaderManager.shaderProgram.uPointLightingDiffuseColor, difuse[0], difuse[1], difuse[2]);  
-        } else {
-          gl.uniform3f(shaderManager.shaderProgram.uPointLightingDiffuseColor, d0, d1, d2);  
-        }
-        
-        if (mlt.Ka){
-          var specular = mlt.Ks;
-          gl.uniform3f(shaderManager.shaderProgram.uPointLightingSpecularColor, specular[0], specular[1], specular[2]); 
-        } else {
-          gl.uniform3f(shaderManager.shaderProgram.uPointLightingSpecularColor, s0, s1, s2);  
-        }
-        
-        if (mlt.bump_map_texture){
-          gl.uniform1i(shaderManager.shaderProgram.uUseSpecularMap, camera.useSpecularMap);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, mlt.bump_map_texture);
-          gl.uniform1i(shaderManager.shaderProgram.uSpecularMapSampler, 1);
-        } else {
-          gl.uniform1i(shaderManager.shaderProgram.uUseSpecularMap, false);
-        }
-      } else {
-        gl.uniform3f(shaderManager.shaderProgram.uAmbientColor, a0, a1, a2);
-        gl.uniform3f(shaderManager.shaderProgram.uPointLightingDiffuseColor, d0, d1, d2);   
-        gl.uniform3f(shaderManager.shaderProgram.uPointLightingSpecularColor, s0, s1, s2); 
-        gl.uniform1i(shaderManager.shaderProgram.uUseSpecularMap, false);
-      }
-    }
-    
-    rendererManager.lookAtPoint = function(eyePosVec, targetPosVec, cameraNormal){
+   
+    rendererManager.prototype.lookAtPoint = function(eyePosVec, targetPosVec, cameraNormal){
       var up = (cameraNormal) ? cameraNormal : [eyePosVec[0], eyePosVec[1] + 1, eyePosVec[2]];
       var vz = vec3.normalize([eyePosVec[0] - targetPosVec[0], eyePosVec[1] - targetPosVec[1], eyePosVec[2] - targetPosVec[2]]);
       var vx = vec3.normalize(vec3.crossProd(up, vz));
@@ -237,149 +118,331 @@ engine.prototype.RendererManager = function (_engine) {
                                vz[0], vz[1], vz[2], 0.0, 
                                eyePosVec[0], eyePosVec[1], eyePosVec[2], 1];
       return inverseViewMatrix; 
-    };
+    }
     
-    rendererManager.setMarixUniforms = function(mvMat, pMat){
+    rendererManager.prototype.bindVertices = function( mesh ){
       var that = this;
-     
-      gl.uniformMatrix4fv(shaderManager.shaderProgram.uMVMatrix, false, mvMat);
-      gl.uniformMatrix4fv(shaderManager.shaderProgram.uPMatrix, false, pMat);
       
-      var normalMatrix = mat3.create();
-      
-      mat4.toInverseMat3(mvMat, normalMatrix);
-      mat3.transpose(normalMatrix);
-      
-      gl.uniformMatrix3fv(shaderManager.shaderProgram.uNMatrix, false, normalMatrix);
-    };
-    
-    rendererManager.draw = function () {     
-      var that = this;
-      mat4.perspective(camera.fov, gl.viewportWidth, gl.viewportHeight, camera.zNear, camera.zFar, pMatrix);
-      
-      var timeStamp = new Date();
-      
-      //physic.roteteAroundPivot(.1);
-      //physic.animateTilt();
-      
-      mvMatrix = physic.cameraSpace(timeStamp);
-      that.setMarixUniforms(mvMatrix, pMatrix);
-      
-      for (var i in objects){          
-        that.mvPushMatrix();
-        var mesh = objects[i];
+      gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vertexBuffer);
+      window.debug && console.log(mesh.vertexFormat);
+      if (mesh.vertexFormat === 'XYZUV' || mesh.vertexFormat === 'XYZUVN' || mesh.vertexFormat === 'XYZN') {  
+        that.setAttribute("aVertexPosition", 3, "FLOAT", mesh.vertex_stride, 0);
         
+        window.debug && console.log("aVertexPositionmesh stride " + mesh.vertex_stride + " offset " + 0);
+
+        if (mesh.vertexFormat === 'XYZUV' || mesh.vertexFormat === 'XYZUVN'){
+          that.setUniform("1i", "uUseTextureAtlas", true);
+          that.setAttribute("aTextureCoord", 2, "FLOAT", mesh.vertex_stride, 12);
+          window.debug && console.log("aTextureCoord stride " + mesh.vertex_stride + " offset " + 12);
+        } else {
+          that.setUniform("1i", "uUseTextureAtlas", false);
+        }
+        
+        if (mesh.vertexFormat === 'XYZUVN' || mesh.vertexFormat === 'XYZN') {
+          var offset = (mesh.vertexFormat === 'XYZUVN') ? 20 : 12;
+          that.setAttribute("aVertexNormal", 3, "FLOAT", mesh.vertex_stride, offset);
+          window.debug && console.log("aVertexNormal stride " + mesh.vertex_stride + " offset " + offset);
+        } 
+      } else {
+        that.setAttribute("aVertexPosition", 3, "FLOAT", 0, 0);
+        if (mesh.normalsBuffer) {
+          gl.bindBuffer(gl.ARRAY_BUFFER, mesh.normalsBuffer);
+          that.setAttribute("aVertexNormal", 3, "FLOAT", 0, 0);
+        } 
+        
+        if (mesh.textureBuffer) {
+          gl.bindBuffer(gl.ARRAY_BUFFER, mesh.textureBuffer);
+          that.setAttribute("aTextureCoord", 2, "FLOAT", 0, 0);
+        } else {
+          mode = gl.LINE_LOOP;
+        }
+      }
+    }
+    
+    rendererManager.prototype.drawElements = function( ){
+      var that = this;
+      var rootObject = dataManager.getRootObject();
+      that.setUniform("Texture", "shadowMap", dataManager.shadow.colorTexture, 2);   
+      that.updateLight( ); 
+      for (var i in rootObject){          
+        var mesh = rootObject[i];
         if (mesh.state == "ready"){
-          gl.uniform1i(shaderManager.shaderProgram.uFactor, camera.factor);
-          if (mesh.vertexFormat === 'XYZUV' || mesh.vertexFormat === 'XYZUVN' || mesh.vertexFormat === 'XYZN') {
-            
-            gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vertexBuffer);
-            gl.vertexAttribPointer(shaderManager.shaderProgram.aVertexPosition, 3, gl.FLOAT, false, mesh.vertex_stride, 0);
-            
-            if (mesh.vertexFormat === 'XYZUV' || mesh.vertexFormat === 'XYZUVN'){
-              gl.uniform1i(shaderManager.shaderProgram.uUseTextureAtlas, true);
-              gl.vertexAttribPointer(shaderManager.shaderProgram.aTextureCoord, 2, gl.FLOAT, false, mesh.vertex_stride, 12);
-            } else {
-              gl.disableVertexAttribArray(shaderManager.shaderProgram.aTextureCoord);
-              gl.uniform1i(shaderManager.shaderProgram.uUseTextureAtlas, false);
-            }
-            
-            if (mesh.vertexFormat === 'XYZUVN' || mesh.vertexFormat === 'XYZN') {
-              var offset = (mesh.vertexFormat === 'XYZUVN') ? 20 : 12;
-              gl.vertexAttribPointer(shaderManager.shaderProgram.aVertexNormal, 3, gl.FLOAT, false, mesh.vertex_stride, offset);
-            } else {
-              //gl.disableVertexAttribArray(shaderManager.shaderProgram.aVertexNormal);
-            }
-          } else {
-            gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vertexBuffer);
-            gl.vertexAttribPointer(shaderManager.shaderProgram.aVertexPosition, 3, gl.FLOAT, false, 0, 0);
-            if (mesh.normalsBuffer) {
-              gl.bindBuffer(gl.ARRAY_BUFFER, mesh.normalsBuffer);
-              gl.vertexAttribPointer(shaderManager.shaderProgram.aVertexNormal, 3, gl.FLOAT, false, 0, 0);
-            } else {
-              //gl.disableVertexAttribArray(shaderManager.shaderProgram.aVertexNormal);
-            }
-            if (mesh.textureBuffer) {
-              gl.bindBuffer(gl.ARRAY_BUFFER, mesh.textureBuffer);
-              gl.vertexAttribPointer(shaderManager.shaderProgram.aTextureCoord, 2, gl.FLOAT, false, 0, 0);
-            } else {
-              mode = gl.LINE_LOOP;
-            }
+          that.bindVertices( mesh );
+          that.setUniform("1i", "uUseTextureAtlas", camera.getAttribute("useTextureAtlas"));
+          
+          if( mesh.controls ){
+            mesh.controls.update();
+            that.setUniform("4fv", "uModelMatrix", mesh.controls.matModel);
           }
           
-          if(mesh.rotate){
-            mvMatrix = physic.objectSpace(timeStamp);
-            that.setMarixUniforms(mvMatrix, pMatrix);
-          }
-        
           var cachedTexture;
-          if (mesh.textureAtlas){
-            if (mesh.textureAtlas[0]) cachedTexture = mesh.textureAtlas[0].textureName;
-            // Fetching texture from texture atlas and drwaing 
-            for (var j in mesh.textureAtlas){
-            
-              var glTexture = mesh.textureAtlas[j].gl_Texture;
-              var mtl = mesh.textureAtlas[j].mtl;
-              var name = mesh.textureAtlas[j].textureName;
+          if ( mesh.childNodes ){
+            if (mesh.childNodes[0]) cachedTexture = mesh.childNodes[0].textureName;
+            for (var j in mesh.childNodes){
               
+              if( mesh.childNodes[j].controls ){
+                that.setUniform("4fv", "uModelMatrix", mesh.childNodes[j].controls.matModel);
+              }
               
-              if (glTexture.state === "ready" && textureManager.pendingDowloads == 0 || mesh.textureAtlas.length == 1){
+              var glTexture = mesh.childNodes[j].gl_Texture;
+              var mtl = mesh.childNodes[j].mtl;
+              var name = mesh.childNodes[j].textureName;
+
+              if (glTexture.state === "ready" && textureManager.pendingDowloads == 0) {
 
                 if (mesh.updateTexture) mesh.updateTexture();
                 
-                if (name !== cachedTexture || j == 0) { //Try to reuse the same texture as much as possible
-                  gl.activeTexture(gl.TEXTURE0);
-                  gl.bindTexture(gl.TEXTURE_2D, glTexture);
-                  gl.uniform1i(shaderManager.shaderProgram.uSampler, 0); 
+                if (name !== cachedTexture || j == 0) { 
+                  that.setUniform("Texture", "uSampler", glTexture, 0);
                   cachedTexture = name;
                 }
                 
                 if (mesh.terrain && mesh.terrain.state == "ready"){
-                  gl.uniform1i(shaderManager.shaderProgram.uUseTerrain, true);   
-                  gl.activeTexture(gl.TEXTURE2);
-                  gl.bindTexture(gl.TEXTURE_2D, mesh.terrain);
-                  gl.uniform1i(shaderManager.shaderProgram.uTerrain, 2); 
-                } else gl.uniform1i(shaderManager.shaderProgram.uUseTerrain, false);
+                  that.setUniform("1i", "uUseTerrain", camera.getAttribute("useTerrain")); 
+                  that.setUniform("1f", "uTerrainCoefficient", camera.getAttribute("terrainCoefficient"));                  
+                  that.setUniform("Texture", "uTerrain", glTexture, 1);
+                } else that.setUniform("1i", "uUseTerrain", false);
+                
+                that.renderLight( mtl );
                 
                 if (mesh.indexBuffer){
                 
                   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indexBuffer);
      
                   if (glTexture.blending) 
-                    that.setBlending(texture.blending);
-                  else if (that.glTexture !== camera.blending)
-                    that.setBlending(camera.blending);
+                    that.setBlending(glTexture.blending );
+                  else if (that.glTexture !== camera.getAttribute("blending"))
+                    that.setBlending( camera.getAttribute("blending") );
                   
-                  var count = (mesh.textureAtlas && mesh.textureAtlas[j].count) ? mesh.textureAtlas[j].count : mesh.size;
-                  var offset = (mesh.textureAtlas && mesh.textureAtlas[j].offset) ? mesh.textureAtlas[j].offset << 1 : 0;
+                  var count = (mesh.childNodes && mesh.childNodes[j].count) ? 
+                               mesh.childNodes[j].count : 
+                               mesh.size;
+                               
+                  var offset = (mesh.childNodes && mesh.childNodes[j].offset) ? 
+                                mesh.childNodes[j].offset << 1 : 
+                                0;
+                  gl.drawElements(camera.getAttribute("MODE"), count, gl.UNSIGNED_SHORT, offset);                
                   
-                  that.lighting(mtl); //Set mtl and linghting properties before drawing
-                  
-                  gl.drawElements(camera.MODE, count, gl.UNSIGNED_SHORT, offset);                
-                
                 } else { 
-                
-                  gl.drawArrays(camera.MODE, 0, mesh.size);
+                  gl.drawArrays(camera.getAttribute("MODE"), 0, mesh.size);
                   
                 }  
               }
             } 
           } else {
+          
             if (mesh.terrain && mesh.terrain.state == "ready"){
-                gl.uniform1i(shaderManager.shaderProgram.uUseTerrain, true);   
-                gl.activeTexture(gl.TEXTURE2);
-                gl.bindTexture(gl.TEXTURE_2D, mesh.terrain);
-                gl.uniform1i(shaderManager.shaderProgram.uTerrain, 2); 
-             } else gl.uniform1i(shaderManager.shaderProgram.uUseTerrain, false);
-            if (mesh.indexBuffer) gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indexBuffer);
-            gl.uniform1i(shaderManager.shaderProgram.uUseLighting, false);
-            gl.uniform1i(shaderManager.shaderProgram.uUseTextureAtlas, false);
-            gl.drawElements(camera.MODE, mesh.size, gl.UNSIGNED_SHORT, 0);   
+              that.setUniform("1i", "uUseTerrain", camera.getAttribute("useTerrain")); 
+              that.setUniform("1f", "uTerrainCoefficient", camera.getAttribute("terrainCoefficient")); 
+              that.setUniform("Texture", "uTerrain", mesh.terrain, 1);
+            } else {
+              that.setUniform("1i", "uUseTerrain", false);
+            }
+             
+            if (mesh.indexBuffer) {
+              gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indexBuffer);
+              gl.drawElements(camera.getAttribute("MODE"), mesh.size, gl.UNSIGNED_SHORT, 0); 
+            } else {
+              gl.drawArrays(3, 0, mesh.size);            
+            }
           }
         }
-        that.mvPopMatrix();
       }
-    };
+      
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+    
+    var view = new objectControl("View", null, true);
+    
+    rendererManager.prototype.render = function( ) {     
+      var that = this;
+      for (var _program in shaders){
+        
+        var width = gl.viewportWidth;
+        var height = gl.viewportHeight;
+        var clear = gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT;// | gl.STENCIL_BUFFER_BIT;
+        var colMask = true;
+        var eyeOffset = 0;
+        var eyeOffsetEnd = 1;
+        var diagonal = Math.sqrt(width*width + height*height);
+        var separation = camera.getAttribute("stereo_Separation") * that.pixelsInCm / diagonal;
+        var cull = gl.BACK;
 
-    return rendererManager;
+        that.drawShadow = shaders[_program].name === "Shadow";
+        
+        if ( camera.getAttribute("stereoscopicMode") ) {
+          eyeOffset = -1;
+          eyeOffsetEnd = 1;
+        }
+        
+        if (that.drawShadow){
+          if (!dataManager.light.controls.properties.useShadowMap || !dataManager.light.useLighting) continue;
+          width = dataManager.shadow.frameBuffer.width;
+          height = dataManager.shadow.frameBuffer.height;
+          cull = gl.FRONT;
+          mvMatrix = dataManager.light.controls.update();
+          gl.bindFramebuffer(gl.FRAMEBUFFER, dataManager.shadow.frameBuffer);
+        } else {
+          // mvMatrix = view.update.update();
+          // camera.controls.update();
+          mvMatrix = mat4.multiply(camera.controls.update(), view.update());
+        }
+        
+        
+        var backgroud = camera.getAttribute("bgColor");
+        gl.viewport(0, 0, width, height);
+        gl.clearColor(backgroud[0]/255, backgroud[1]/255,backgroud[2]/255, backgroud[3]);
+        gl.clear(clear);
+        gl.cullFace( cull );
+        that.activateProgram( shaders[_program] );
+        
+        for(eyeOffset; eyeOffset <= eyeOffsetEnd; eyeOffset += 2){   
+
+          switch(eyeOffset) {
+            case 0:
+              gl.colorMask(colMask, colMask, colMask, colMask);
+              break;
+            case -1:
+              that.setStereoProperties( -1, separation );         
+              break;
+            case 1:
+              that.setStereoProperties( 1, separation );   
+              break;
+          }
+          
+          var fov = camera.getFieldOfView();
+          var zNear = camera.getAttribute('zNear');
+          var zFar = camera.getAttribute('zFar');
+          mat4.perspective( fov, width, height, zNear, zFar, pMatrix );
+          mat4.translate( mvMatrix, [eyeOffset * separation, 0, 0]);
+          that.setMarixUniforms( mvMatrix, pMatrix );
+          
+          that.drawElements( );
+        }
+        
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.colorMask(true, true, true, true);
+      }
+    }   
+        
+    rendererManager.prototype.setMarixUniforms = function( mvMat, pMat ){
+      var that = this;
+      that.setUniform("4fv", "uCameraViewMatrix", mvMat); 
+      that.setUniform("4fv", "uCameraProjMatrix", pMat); 
+      var normalMatrix = mat3.create();
+      mat4.toInverseMat3(mvMat, normalMatrix);
+      mat3.transpose(normalMatrix);
+      that.setUniform("3fv", "uNMatrix", normalMatrix);
+    }
+    
+    rendererManager.prototype.setAttribute = function( attributeName, size, type, vertex_stride, offset ){
+      var attribute = program.attributes[attributeName];
+      gl.vertexAttribPointer(attribute, size, gl[type], false, vertex_stride, offset);
+    }
+    
+    rendererManager.prototype.setUniform = function( type, uniformName, value, index ){
+      var uniform = program.uniforms[uniformName];
+      if( uniform ){
+        switch(type){
+          case "1f":
+            gl.uniform1f( uniform, value );
+            break;
+          case "1i":
+            gl.uniform1i( uniform, value );
+            break;
+          case "3f":
+            gl.uniform3f( uniform, value[0], value[2], value[2] );
+            break;
+          case "3fv":
+            gl.uniformMatrix3fv( uniform, false, value );      
+            break;
+          case "4fv":
+            gl.uniformMatrix4fv( uniform, false, value );      
+            break;
+          case "Texture":
+            gl.activeTexture(gl['TEXTURE0'] + index);
+            gl.uniform1i(uniform, index); 
+            gl.bindTexture(gl.TEXTURE_2D, value);
+            break;
+        }
+      }
+    }
+    
+    rendererManager.prototype.setStereoProperties = function( mode, sep ){
+      var that = this;
+      var red = (mode == -1) ? false : true;
+      var green = (mode == -1) ? true : false;
+      var blue = (mode == -1) ? true : false;
+      gl.colorMask(red, green, blue, true);
+      that.setUniform("1i", "uStereoMode", true);    
+      that.setUniform("1f", "uEyeSign", mode);    
+      that.setUniform("1f", "uEyeSeparation", sep);    
+    }
+    
+    rendererManager.prototype.updateLight = function( ){
+      var that = this;
+      var light = dataManager.light;
+      if (!light) return;
+      var w = dataManager.shadow.frameBuffer.width;
+      var h = dataManager.shadow.frameBuffer.height;
+      var lightViewMat = light.controls.update();
+      var lightProjMat = mat4.create();
+      var fov = camera.getFieldOfView();
+      var zNear = camera.getAttribute('zNear');
+      var zFar = camera.getAttribute('zFar');
+      mat4.perspective( fov, w, h, zNear, zFar, lightProjMat );
+      var lightRotationMat = mat3.rotFromMat4(lightViewMat);
+      that.setUniform("3fv", "uLightRotationMat", lightRotationMat);
+      that.setUniform("4fv", "uLightViewMat", lightViewMat);      
+      that.setUniform("4fv", "uLightProjwMat", lightProjMat);      
+      that.setUniform("1i", "uUseLighting", light.useLighting);    
+      that.setUniform("1i", "uUseShadowMap", light.useShadowMap);    
+      that.setUniform("1f", "uPower", light.power.val);    
+      that.setUniform("1f", "uAdjust", light.adjust.val);    
+      that.setUniform("1f", "uMaterialShininess", light.materialShininess.val);    
+      that.setUniform("1f", "lightRadius", light.lightRadius.val);    
+      that.setUniform("1f", "lightSpotInnerAngle", light.lightSpotInnerAngle.val);    
+      that.setUniform("1f", "lightSpotOuterAngle", light.lightSpotOuterAngle.val); 
+    }
+    
+    rendererManager.prototype.renderLight = function( mlt ){
+      var that = this;
+      var light = dataManager.light;
+      
+      if (!light) return;
+      
+      var a0 = light.ambientColor[0] * .01;
+      var a1 = light.ambientColor[1] * .01;
+      var a2 = light.ambientColor[2] * .01;
+      var d0 = light.diffuseColor[0] * .01;
+      var d1 = light.diffuseColor[1] * .01;
+      var d2 = light.diffuseColor[2] * .01;
+      var s0 = light.specularColor[0] * .01;
+      var s1 = light.specularColor[1] * .01;
+      var s2 = light.specularColor[2] * .01;      
+        
+      that.setUniform("3f", "uAmbientColor", (mlt && mlt.Ka && light.useSpecularMap) ? mlt.Ka : [a0, a1, a2]);
+      that.setUniform("3f", "uDiffuseColor", (mlt && mlt.Kd && light.useSpecularMap) ? mlt.Kd : [d0, d1, d2]); 
+      that.setUniform("3f", "uSpecularColor", (mlt && mlt.Ks && light.useSpecularMap) ? mlt.Ks : [s0, s1, s2]);  
+    
+      if (mlt && mlt.bump_map_texture){
+        that.setUniform("1i", "uUseSpecularMap", light.useSpecularMap);    
+        that.setUniform("Texture", program.uSpecularMapSampler, mlt.bump_map_texture, 3);
+      } else {
+        that.setUniform("1i", "uUseSpecularMap", false);    
+      }     
+    }
+
+    rendererManager.prototype.activateProgram = function( prog ){
+      program = prog;
+      gl.useProgram(program);
+    }
+    
+    rendererManager.prototype.setStereoscopicMode = function(flag){
+      that.stereoscopicMode = (flag) ? flag : !that.stereoscopicMode;
+    }
+    
+    return new rendererManager();
 };

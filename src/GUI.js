@@ -1,51 +1,58 @@
-var engine = engine || {};
+var Engine = Engine || {};
 
 'use strict';
 
-engine.prototype.GUI = function () {
-  var gui = new dat.GUI();
-  
-  gui.addcamera = function (camera) {
+Engine.prototype.GUI = function () {
+
+  function gui(){
     var that = this;
-    var f1 = that.addFolder('Camera Controls');
-    
-    f1.add(camera, 'factor', 0, 180, 1);
-    f1.add(camera, 'fov', 0, 180, 1);
-    f1.add(camera, 'blending', true, false);
-    f1.add(camera, 'SRC_ALPHA', 0, 6, .01);
-    f1.add(camera.pos, "x", -100, 100, 0.1).listen();
-    f1.add(camera.pos, "y", -100, 100, 0.1).listen();
-    f1.add(camera.pos, "z", -300, 300, 0.1).listen();
-    f1.add(camera, 'tilt', -360, 360, 1).listen();
-    f1.add(camera, 'roll', -360, 360, 1).listen();
-    f1.add(camera, 'heading', -360, 360, 1).listen();
-    
-    var f2 = that.addFolder('Lighting Controls');
-    f2.add(camera, 'useLighting', true, false);
-    f2.add(camera, 'useSpecularMap', true, false);
-    f2.add(camera, 'materialShininess', 0, 255, 1);
-    f2.add(camera.lightDirection, 'lightDirectionX', -200, 200, .1);
-    f2.add(camera.lightDirection, 'lightDirectionY', -200, 200, .1);
-    f2.add(camera.lightDirection, 'lightDirectionZ', -200, 200, .1);
-    f2.addColor(camera, 'ambientColor');
-    f2.addColor(camera, 'specularColor');
-    f2.addColor(camera, 'pointLightingDiffuse');
+    that.folders = {};
+    that.gui = new dat.GUI();
+  }
+  
+  gui.prototype.addFolder = function (name, position, properties) {
+    var that = this;
+    var gui = that.gui;
 
-    that.add(camera, 'MODE', { 
-      "POINTS": 0, 
-      "LINE_STRIP": 1, 
-      "LINE_LOOP": 2, 
-      "LINES": 3, 
-      "TRIANGLE_STRIP": 4, 
-      "TRIANGLE_FAN": 5, 
-      "TRIANGLES": 6
-    });
-    that.add(camera, 'showTextureMap', true, false);
-    that.addColor(camera, 'bgColor');
-
-    that.name = 'Advanced properties';
-    //that.close();
+    var f = gui.addFolder(name);
+    that.folders[name] = f;
+    for (var name in position){
+      that.setProperty(f, position, name);
+    }
+    for (var name in properties){
+      if (name.indexOf('Color') != -1){
+        f.addColor(properties, name);
+      } else {
+        that.setProperty(f, properties, name);
+      }
+    }
+    return f;
   };
+  
+  gui.prototype.setProperty = function( f, item, name ){
+    var that = this;
+    if (name.toLowerCase().indexOf('matrix') == -1){
+      var obj = item[name];
+      var itemToAdd = (obj.val !== undefined) ? obj : item;
+      var nameToAdd = (obj.val !== undefined) ? 'val' : name;
+      var folder;
+      var list = obj.list;
+      
+      if (list) {
+        folder = f.add(itemToAdd, nameToAdd, list);
+      } else {
+        var val = (obj.val) ? obj.val : 100;
+        var min = (obj.min) ? obj.min : -val;
+        var max = (obj.max) ? obj.max : val;
+        var step = val/(max-min);
+        folder = f.add(itemToAdd, nameToAdd, min, max, step).listen();
+      }
+      
+      if (obj.name){
+        folder.name(obj.name);
+      }
+    }
+  }
 
-  return gui;
+  return new gui();
 };

@@ -1,8 +1,8 @@
-var engine = engine || {};
+var Engine = Engine || {};
 
 'use strict';
 
-engine.prototype.DataManager = function (_engine) {
+Engine.prototype.DataManager = function (_engine) {
   
   var dataManager = {};
   var controlManager = _engine.controlManager;
@@ -11,31 +11,38 @@ engine.prototype.DataManager = function (_engine) {
   var shaderManager = _engine.shaderManager;
   var camera = _engine.camera;
   var physic = _engine.physic;
+  var datGUI = _engine.datGUI;
+  var rootObject = [];
+  var gl = shaderManager.gl;
+  dataManager.offset = 0;
+  dataManager.dataFolder = "data";
+  dataManager.modelsFolder = "Jets";
   
-  dataManager.resources = [ 
-    "/data/Jets/Su-37_Terminator",
-    "/data/Jets/Su-27_Flanker",
-    "/data/Jets/Su-32_FN",
-    "/data/Jets/Su-34_Fullback",
-    "/data/Jets/Su-35_SuperFlanker",
-    "/data/Jets/Mig-29_Fulcrum",
-    "/data/Jets/Mig-31_Foxhound",
-    "/data/Jets/F-4E_Phantom_II",
-    "/data/Jets/F-14A_Tomcat",
-    "/data/Jets/RF-15_PeakEagle",
-    "/data/Jets/F-16C_FightingFalcon",
-    "/data/Jets/FA-18C_Hornet",
-    "/data/Jets/FA-22_Raptor",
-    "/data/Jets/FB-22_StrikeRaptor",
-    "/data/Jets/F-35_Lightning_II",
-    "/data/Jets/F-117_Nighthawk",
-    "/data/Jets/YF-12A",
-    "/data/Jets/YF-17_Cobra",
-    "/data/Jets/YF-23_BlackWidow_II",
-    "/data/Jets/B-2_Spirit",
-    "/data/Jets/Eurofighter-2000_Typhoon",
-    "/data/Jets/Saab-39_Gripen",
-    "/data/Jets/Shuttle"
+  dataManager.resources = [
+    "Su-37_Terminator",
+    "Su-27_Flanker",
+    "Su-32_FN",
+    "Su-34_Fullback",
+    "Su-35_SuperFlanker",
+    "Mig-29_Fulcrum",
+    "Mig-31_Foxhound",
+    "F-4E_Phantom_II",
+    "F-14A_Tomcat",
+    "RF-15_PeakEagle",
+    "F-16C_FightingFalcon",
+    "FA-18C_Hornet",
+    "FA-22_Raptor",
+    "FB-22_StrikeRaptor",
+    "F-35_Lightning_II",
+    "F-117_Nighthawk",
+    "YF-12A",
+    "YF-17_Cobra",
+    "YF-23_BlackWidow_II",
+    "B-2_Spirit",
+    "Eurofighter-2000_Typhoon",
+    "Saab-39_Gripen",
+    // "Shuttle",
+    // "Boeing 747"
   ];
   
   dataManager.staticResources = 0;
@@ -71,7 +78,7 @@ engine.prototype.DataManager = function (_engine) {
   };
   
   dataManager.parseObjFile = function(objContent, src){
-    var that = this;
+    var that = this,
         indexData = new Array(),
         vertexData = new Array(),
         tempV = new Array(),
@@ -195,7 +202,7 @@ engine.prototype.DataManager = function (_engine) {
       vertices: vertexData, 
       indices: indexData, 
       vertexFormat: format, 
-      textureAtlas: segments,
+      childNodes: segments,
       mtlContent: mtlObject
     };
   }
@@ -204,9 +211,9 @@ engine.prototype.DataManager = function (_engine) {
     var that = this,
         mtl = {};
     
-    mtl._folder = "/";    
+    mtl._folder = "";    
     var tmpArr = srcUrl.split('/');
-    for (var ii = 1; ii < tmpArr.length - 1; ii++)
+    for (var ii = 0; ii < tmpArr.length - 1; ii++)
       mtl._folder += tmpArr[ii] + "/";
       
     var firstElement = true;
@@ -248,8 +255,10 @@ engine.prototype.DataManager = function (_engine) {
     return mtl;
   }
   
-  dataManager.loadDataAndInitBuffers = function(obj, _callback){
+  dataManager.loadDataAndInitBuffers = function(obj, name, _callback){
+    var that = this;
     var bufferPool = {};
+    var _name = name;
     
     this.getData(obj, function (mesh){
       if (mesh.vertices) {
@@ -308,15 +317,23 @@ engine.prototype.DataManager = function (_engine) {
         }
       }
 
+      bufferPool.controls = new _engine.objectControl(_name, null, true);
+      // bufferPool.controls.setPosition({x: that.offset, y:0, z: 0, tilt: 0, heading:0, roll: 0});  
+      // that.offset += 15;
+      
       /* Binding together textures with 3D object pieces */
-      bufferPool.textureAtlas = mesh.textureAtlas;
-      for(var ii in bufferPool.textureAtlas){  
-        var tName = bufferPool.textureAtlas[ii].textureName;
-        bufferPool.textureAtlas[ii].gl_Texture = bufferPool.texture[tName];
-        bufferPool.textureAtlas[ii].mtl = bufferPool.mtl[tName];
+      bufferPool.childNodes = mesh.childNodes;
+      for(var ii in bufferPool.childNodes){  
+        var tName = bufferPool.childNodes[ii].textureName;
+        bufferPool.childNodes[ii].gl_Texture = bufferPool.texture[tName];
+        bufferPool.childNodes[ii].mtl = bufferPool.mtl[tName];
+        
+        // bufferPool.childNodes[ii].controls = new _engine.objectControl(tName + "_" + ii, null, true);
+        bufferPool.controls.appendChild( bufferPool.childNodes[ii] );
       }
       
       delete bufferPool.mtl._folder;
+      
       
       bufferPool.state = "ready";
     });  
@@ -325,23 +342,29 @@ engine.prototype.DataManager = function (_engine) {
   };
   
   dataManager.generateSurface = function(zDepth){
-    var z = (zDepth !== undefined) ? zDepth : 0;
-    var length = 110;
-    var coeficient = 2;
+    var z = (zDepth !== undefined) ? zDepth : -20;
+    var length = 100;
+    var coeficient = 1;
     var indexMat = {};
     var vertexArray = new Array();
     var textureArray = new Array();
     var indexArray = new Array();
+    var normalsArray = new Array();
+    var startX = 50;
+    var startY = 50;
     
-    index = 0;
     for (var y = 0; y <= length; y++){
       for (var x = 0; x <= length; x++){
-        vertexArray.push( coeficient * x );
-        vertexArray.push( coeficient * y );
-        vertexArray.push( 0 );
+        vertexArray.push( coeficient * x - startX);
+        vertexArray.push( coeficient * y - startY);
+        vertexArray.push( z );
 
         textureArray.push(x / length); 
         textureArray.push(y / length);
+        
+        normalsArray.push(0.0);
+        normalsArray.push(0.0);
+        normalsArray.push(1.0);
       }
     };
     
@@ -362,8 +385,6 @@ engine.prototype.DataManager = function (_engine) {
         indexArray.push(i3);
       }
     }
-    
-
     
     /*                        
     
@@ -406,16 +427,16 @@ engine.prototype.DataManager = function (_engine) {
     var bufferPool = {};
     bufferPool.vertexBuffer = bufferManager.initBuffer(vertexArray);
     bufferPool.textureBuffer = bufferManager.initBuffer(textureArray);
-    //bufferPool.normalsBuffer = bufferManager.initBuffer(vertexArray); // Will fix later
+    bufferPool.normalsBuffer = bufferManager.initBuffer(normalsArray); // Will fix later
     bufferPool.indexBuffer = bufferManager.initIndexBuffer(indexArray);
     bufferPool.size = indexArray.length;
     
-    bufferPool.textureAtlas = new Array();
-    bufferPool.textureAtlas[0] = {};
-    bufferPool.textureAtlas[0].gl_Texture = textureManager.createTexture("/data/ground.jpg");
+    bufferPool.childNodes = new Array();
+    bufferPool.childNodes[0] = {};
+    bufferPool.childNodes[0].gl_Texture = textureManager.createTexture("data/ground.jpg");
     
     bufferPool.terrain = textureManager.createTexture("data/Heightmap.png");
-    
+    bufferPool.controls = new _engine.objectControl("Surface");
     this.staticResources++;
     
     bufferPool.state = "ready";
@@ -423,18 +444,18 @@ engine.prototype.DataManager = function (_engine) {
     return bufferPool;    
   };
   
-  dataManager.generateCube = function(){
-    var z = -30;
-    var length = 20;
-    var coeficient = 2;
+  dataManager.generateCube = function(length, z, coeficient){
+    var z = (z) ? z : -30;
+    var length = (length) ? length : 20;
+    var coeficient = (coeficient) ? coeficient : 2;
     
     var vertex_mat = [ 
-      -1.0, -1.0,
-       1.0, -1.0,
-       1.0,  1.0,
-      -1.0,  1.0,
-      -1.0, -1.0,
-       1.0,  1.0 ];
+      -1.0 * coeficient, -1.0 * coeficient,
+       1.0 * coeficient, -1.0 * coeficient,
+       1.0 * coeficient,  1.0 * coeficient,
+      -1.0 * coeficient,  1.0 * coeficient,
+      -1.0 * coeficient, -1.0 * coeficient,
+       1.0 * coeficient,  1.0 * coeficient ];
       
     var vertexArray = new Array();
     var normalArray = new Array();
@@ -597,9 +618,9 @@ engine.prototype.DataManager = function (_engine) {
     bufferPool.textureBuffer = bufferManager.initBuffer(textureArray);
     bufferPool.normalsBuffer = bufferManager.initBuffer(vertexArray); // Will fix later
     
-    bufferPool.textureAtlas = new Array();
-    bufferPool.textureAtlas[0] = {};
-    bufferPool.textureAtlas[0].gl_Texture = textureManager.createTexture("/data/sky.jpg");
+    bufferPool.childNodes = new Array();
+    bufferPool.childNodes[0] = {};
+    bufferPool.childNodes[0].gl_Texture = textureManager.createTexture("data/sky.jpg");
     
     this.staticResources++;
     
@@ -616,29 +637,32 @@ engine.prototype.DataManager = function (_engine) {
     }
   }
   
-  dataManager.selectModel = function(_callback){
+  dataManager.loadModel = function( model ){
+    var that = this;
+    var url = that.dataFolder + "/" + that.modelsFolder + "/" + model + "/" + model  + ".obj";
+    var newModel = that.loadDataAndInitBuffers( url, model, function( object3D ){
+      that.remove(that.currentModel);
+      that.add(newModel);
+      that.currentModel = newModel;
+    })
+  }
+  
+  dataManager.addKitchenModel = function(name, model_folder, resource_path){
     var that = this; 
-    var selectList = document.getElementById('selection');
-    
     document.getElementById('loading').style.visibility = "visible";
     that.loaderVisibility = true;
     
-    for (var item = 0; item < selectList.options.length; item++){ 
-      if (selectList.options[item].selected){
-        for(var i in that.resources){
-          if (that.resources[i].indexOf(selectList.options[item].value) !== -1){ 
-            var relativePath = that.resources[i] + '/' + selectList.options[item].value + '.obj';
-            that.loadDataAndInitBuffers(relativePath, function(object3D){
-              object3D.rotate = physic.rotateInCameraSpace;
-              object3D.move = physic.moveInCameraSpace;
-              controlManager.bindObjectControls(object3D.rotate, object3D.move);
-              
-              if (typeof _callback == 'function') _callback.call(that, object3D); 
-            })
-          }
-        }
-      }
-    }
+    var name = (name) ? name : that.resources[0];
+    var modelsFolder = (model_folder) ? model_folder : that.modelsFolder;
+    var res = (resource_path) ? resource_path : that.dataFolder; + "/" + modelsFolder + "/" + name + "/" + name  + ".obj";
+    var url = res + "/" + modelsFolder + "/" + name  + ".obj";
+    that.currentModel = that.loadDataAndInitBuffers( url, name );
+    that.currentModelName = name;
+    datGUI.gui.add(that, "currentModelName", that.resources).name("Jets").onFinishChange(function(value) {
+      that.loadModel(value);
+    });
+    
+    return that.currentModel;
   }
   
   dataManager.addVideo = function(){
@@ -671,21 +695,21 @@ engine.prototype.DataManager = function (_engine) {
     bufferPool.size = indeces_mat.length;
     bufferPool.textureBuffer = bufferManager.initBuffer(texture_mat);
     bufferPool.normalsBuffer = bufferManager.initBuffer(vert_normals); // Will fix later
-   /* bufferPool.textureAtlas = new Array();
-    bufferPool.textureAtlas[0] = {};
-    bufferPool.textureAtlas[0].gl_Texture = textureManager.createTexture("/data/ground.jpg");
+    /* bufferPool.childNodes = new Array();
+      bufferPool.childNodes[0] = {};
+      bufferPool.childNodes[0].gl_Texture = textureManager.createTexture("data/ground.jpg");
     */
-    var gl = shaderManager.gl;
+    
     var cubeTexture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, cubeTexture);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    bufferPool.textureAtlas = new Array();
-    bufferPool.textureAtlas[0] = {};
-    bufferPool.textureAtlas[0].gl_Texture = cubeTexture;
-    bufferPool.textureAtlas[0].video = videoElement;
+    bufferPool.childNodes = new Array();
+    bufferPool.childNodes[0] = {};
+    bufferPool.childNodes[0].gl_Texture = cubeTexture;
+    bufferPool.childNodes[0].video = videoElement;
     this.video = videoElement;
     function startVideo() {
       cubeTexture.state = "ready";
@@ -693,7 +717,7 @@ engine.prototype.DataManager = function (_engine) {
     }
     
     bufferPool.updateTexture = function() {
-      gl.bindTexture(gl.TEXTURE_2D, bufferPool.textureAtlas[0].gl_Texture);
+      gl.bindTexture(gl.TEXTURE_2D, bufferPool.childNodes[0].gl_Texture);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, videoElement);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -709,9 +733,193 @@ engine.prototype.DataManager = function (_engine) {
     
     this.staticResources++;
     bufferPool.state = "ready";
-        
+    bufferPool.controls = new _engine.objectControl("Video", null, true);
     return bufferPool;    
   }
   
+  dataManager.simpleCube = function(){
+    var vertexArray = [// Front face
+            -1.0, -1.0,  1.0,
+             1.0, -1.0,  1.0,
+             1.0,  1.0,  1.0,
+            -1.0,  1.0,  1.0,
+
+            // Back face
+            -1.0, -1.0, -1.0,
+            -1.0,  1.0, -1.0,
+             1.0,  1.0, -1.0,
+             1.0, -1.0, -1.0,
+
+            // Top face
+            -1.0,  1.0, -1.0,
+            -1.0,  1.0,  1.0,
+             1.0,  1.0,  1.0,
+             1.0,  1.0, -1.0,
+
+            // Bottom face
+            -1.0, -1.0, -1.0,
+             1.0, -1.0, -1.0,
+             1.0, -1.0,  1.0,
+            -1.0, -1.0,  1.0,
+
+            // Right face
+             1.0, -1.0, -1.0,
+             1.0,  1.0, -1.0,
+             1.0,  1.0,  1.0,
+             1.0, -1.0,  1.0,
+
+            // Left face
+            -1.0, -1.0, -1.0,
+            -1.0, -1.0,  1.0,
+            -1.0,  1.0,  1.0,
+            -1.0,  1.0, -1.0
+     ];
+     
+    var bufferPool = {};
+    bufferPool.controls = new _engine.objectControl("Cube");
+    bufferPool.vertexBuffer = bufferManager.initBuffer(vertexArray);
+    bufferPool.size = vertexArray.length / 3;
+    // bufferPool.normalsBuffer = bufferManager.initBuffer(vertexArray);
+    
+    this.staticResources++;
+    
+    bufferPool.state = "ready";
+    
+    return bufferPool; 
+  }
+  
+  dataManager.addLight = function(){
+    var light = {};
+    light.useLighting = true;
+    light.useSpecularMap = true;
+    light.useShadowMap = true;
+    light.ambientColor = [ 0, 0, 0 ];
+    light.specularColor = [ 0, 0, 0 ];
+    light.diffuseColor = [ 255, 255, 255 ];
+    light.materialShininess = {val: 255, step: 1, min: 0, max: 500, name: "Material Shininess"};
+    light.lightRadius = {val: 30, step: 1, min: 0, max: 360, name: "Light Radius"};
+    light.lightSpotInnerAngle = {val: 45, step: 1, min: 0, max: 360, name: "Spot Inner Angle"};
+    light.lightSpotOuterAngle = {val: 45, step: 1, min: 0, max: 360, name: "Spot Outer Angle"};
+    light.power = {val: 0.7, step: 0.001, min: 0, max: 10, name: "LightPower"};
+    light.adjust = {val: 0.0003, step: 0.000001, min: 0, max: 0.01, name: "Shadow Threshold"};
+    light.controls = new _engine.objectControl( "Light", light, true );
+    light.controls.setPosition({x: 0, y:0, z: -33, tilt: 0, heading:0, roll: 0});  
+    return light;    
+  }
+  
+  dataManager.addShadow = function(){
+    return bufferManager.createFrameBufferObject(512);    
+  }
+  
+  dataManager.loadModel = function( model ){
+    var that = this;
+    var url = that.dataFolder + "/" + that.modelsFolder + "/" + model + "/" + model  + ".obj";
+    var newModel = that.loadDataAndInitBuffers( url, model, function( object3D ){
+      that.remove(that.currentModel);
+      that.add(newModel);
+      that.currentModel = newModel;
+    });
+    return newModel;
+  }
+  
+  dataManager.addModel = function( iterator ){
+    var that = this; 
+    
+    document.getElementById('loading').style.visibility = "visible";
+    that.loaderVisibility = true;
+
+    var name = that.resources[iterator || 0];
+    var url = that.dataFolder + "/" + that.modelsFolder + "/" + name + "/" + name  + ".obj";
+    
+    that.currentModel = that.loadDataAndInitBuffers( url, name );
+    that.currentModelName = name;
+    
+    datGUI.gui.add(that, "currentModelName", that.resources).name("Jets").onFinishChange(function(value) {
+      that.loadModel(value);
+    });
+
+    return that.currentModel;
+  }  
+  
+  dataManager.remove = function (obj) {
+    var that = this;
+    if (obj){ 
+      for (var i in rootObject) {
+        if (obj === rootObject[i]){
+          if (rootObject[i].vertexBuffer) gl.deleteBuffer(rootObject[i].vertexBuffer);
+          if (rootObject[i].textureBuffer) gl.deleteBuffer(rootObject[i].textureBuffer);
+          if (rootObject[i].normalsBuffer) gl.deleteBuffer(rootObject[i].normalsBuffer);
+          for (var t in rootObject[i].texture){
+            rootObject[i].texture[t].status = 'removed';
+            gl.deleteTexture(rootObject[i].texture[t])
+          }
+          rootObject.splice(i, 1);
+        }
+      }
+    } else {
+      var index = dataManager.staticResources;
+      rootObject[index].status = 'removed';
+      if (rootObject[index].vertexBuffer) gl.deleteBuffer(rootObject[index].vertexBuffer);
+      if (rootObject[index].textureBuffer) gl.deleteBuffer(rootObject[index].textureBuffer);
+      if (rootObject[index].normalsBuffer) gl.deleteBuffer(rootObject[index].normalsBuffer);
+      for (var t in rootObject[index].childNodes){
+        rootObject[index].childNodes[t].gl_Texture.state = 'removed';
+        gl.deleteTexture(rootObject[index].childNodes[t].gl_Texture)
+      }
+      rootObject.splice(index, 1);
+    } 
+  };
+    
+  dataManager.removeAllrootObject = function(){
+    var that = this;
+    for (var i in rootObject) {
+      if (rootObject[i].vertexBuffer) gl.deleteBuffer(rootObject[i].vertexBuffer);
+      if (rootObject[i].textureBuffer) gl.deleteBuffer(rootObject[i].textureBuffer);
+      if (rootObject[i].normalsBuffer) gl.deleteBuffer(rootObject[i].normalsBuffer);
+      for (var t in rootObject[i].texture){
+        rootObject[i].texture[t].status = 'removed';
+        gl.deleteTexture(rootObject[i].texture[t])
+      }
+      rootObject.splice(i, 1);
+    }
+    delete that.loadedModel;
+  }
+  
+  dataManager.add = function(bufferPool) {
+    if (bufferPool) rootObject.push(bufferPool);
+  }
+  
+  dataManager.getRootObject = function() {
+    return rootObject;
+  }
+  
+  dataManager.negativeVals = function(obj){
+    var clone = {};
+
+    clone.x = -obj.x;
+    clone.y = -obj.y;
+    clone.z = -obj.z;
+    clone.tilt = obj.tilt;
+    clone.heading = -obj.heading;
+    clone.roll = -obj.roll;
+    return clone;
+  }
+  
+  dataManager.initialize = function(){
+    var that = this;
+  
+    that.light = that.addLight();
+    that.shadow = that.addShadow();
+    that.cube = dataManager.simpleCube();
+    that.add(that.generateSurface());
+    that.add(that.addModel(12));
+    // for (var i in that.resources)
+    // for (var i = 0; i <= that.resources.length -1 ; i++)
+    //that.add(that.addKitchenModel("kitchen", "Kitchen"));
+    // that.add(dataManager.generateSky()); 
+    // that.add(that.cube);
+    //that.add(dataManager.addVideo());
+  }
+    
   return dataManager;
 };

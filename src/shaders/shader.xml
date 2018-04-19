@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<shader>
+
+  <fragment>
+    precision highp float;
+    
+    varying vec2 vTextureCoord;    
+    varying vec3 vWorldNormal;
+    varying vec4 vWorldPosition;
+    varying vec4 vPosition;
+    varying vec4 vPositionLight;
+    
+    uniform float uMaterialShininess;
+    uniform float uAlpha;
+    uniform float lightRadius;
+    uniform float lightSpotInnerAngle;
+    uniform float lightSpotOuterAngle;
+    uniform float uPower;
+    uniform float uAdjust;
+    
+    uniform bool uUseSpecularMap;
+    uniform bool uUseLighting;
+    uniform bool uUseTextureAtlas;
+    uniform bool uUseShadowMap;
+    
+    uniform vec3 uSpecularColor;
+    uniform vec3 uDiffuseColor;
+    uniform vec3 uAmbientColor;
+    
+    uniform sampler2D uSampler;
+    uniform sampler2D shadowMap;
+    uniform sampler2D uSpecularMapSampler;
+    
+    uniform mat4 uCameraViewMatrix;
+    uniform mat4 uLightViewMat;
+    uniform mat3 uLightRotationMat;
+    
+    const float PI = 3.141592653589793;
+    
+    float attenuation(vec3 dir){
+      float dist = length(dir);
+      float radiance = 1.0/(1.0+pow(dist/10.0, 2.0));
+      return clamp(radiance*10.0, 0.0, 1.0);
+    }
+    
+    float influence(vec3 normal, float coneAngle){
+      float minConeAngle = ((360.0-coneAngle-10.0)/360.0)*PI;
+      float maxConeAngle = ((360.0-coneAngle)/360.0)*PI;
+      return smoothstep(minConeAngle, maxConeAngle, acos(normal.z));
+    }
+
+    float lambert(vec3 surfaceNormal, vec3 lightDirNormal){
+      return max(0.0, dot(surfaceNormal, lightDirNormal));
+    }
+
+    vec3 skyLight(vec3 normal, vec3 ambient){
+      return vec3(smoothstep(0.0, PI, PI-acos(normal.y))) * ambient;
+    }
+
+    vec3 gamma(vec3 color){
+      return pow(color, vec3(uPower));
+    }
+    
+    float unpack (vec4 colour){
+      const vec4 bitShifts = vec4(1.0 / (256.0 * 256.0 * 256.0),
+                                  1.0 / (256.0 * 256.0),
+                                  1.0 / 256.0,
+                                  1.0);
+      return dot(colour, bitShifts);
+    }
+    
+    void main(){
+      vec3 excident = vec3(1.0, 1.0, 1.0);
+      vec4 textureMap = vec4(1.0, 1.0, 1.0, 1.0);
+      vec3 vColour = vec3(1.0, 1.0, 1.0);
+      vec3 lightPosNormal = vec3(1.0, 1.0, 1.0);
+      
+      if ( uUseTextureAtlas ){
+        textureMap = texture2D(uSampler, vTextureCoord);
+      }
+      
+      if ( uUseLighting ) {
+        vec3 worldNormal = normalize( vWorldNormal );
+
+        vec3 camPos = (uCameraViewMatrix * vWorldPosition).xyz;
+        vec3 lightPos = (uLightViewMat * vWorldPosition).xyz;
+        lightPosNormal = normalize(lightPos);
+        vec3 lightSurfaceNormal = uLightRotationMat * worldNormal;
+
+        excident = (
+          skyLight(worldNormal, uAmbientColor) + lambert(lightSurfaceNormal, -lightPosNormal) *
+          influence(lightPosNormal, lightSpotInnerAngle) * attenuation(lightPos)
+        ); 
+        
+        float shininess = 1.0;
+        
+        if ( uUseSpecularMap ){
+          shininess = texture2D(uSpecularMapSampler, vTextureCoord).r;
+        }
+        
+        vec3 l = gamma(excident);
+        vColour = vec3((uDiffuseColor.x + uSpecularColor.x * shininess) * l.x,
+                       (uDiffuseColor.y + uSpecularColor.y * shininess) * l.y,
+                       (uDiffuseColor.z + uSpecularColor.z * shininess) * l.z);
+        
+        vColour.x = max(0.0, min(1.0, vColour.x));
+        vColour.y = max(0.0, min(1.0, vColour.y));
+        vColour.z = max(0.0, min(1.0, vColour.z));
+      }
+      
+      vec3 depth = vPositionLight.xyz / vPositionLight.w;
+      depth.z -= uAdjust;
+     
+      if ( (depth.x &lt; 0.0) || 
+           (depth.x > 1.0) || 
+           (depth.y &lt; 0.0) || 
+           (depth.y > 1.0) || 
+           (depth.z &lt; 0.0) || 
+           (depth.z > 1.0)  ||
+           !uUseShadowMap || !uUseLighting){
+           
+        gl_FragColor = vec4( textureMap.xyz * vColour, textureMap.a * uAlpha );
+        
+      } else {
+        
+        float texelSize = 1.0 / 512.0;
+        vec3 colour = vec3(0.0, 0.0, 0.0);
+        float shadow = 0.0;
+
+        int count = 0;
+        for (int y = -1; y &lt;= 1; ++y){
+          for (int x = -1; x &lt;= 1; ++x){
+              vec2 offset = depth.xy + vec2(float(x) * texelSize, float(y) * texelSize);
+              // if ( (offset.x >= 0.0) &amp;&amp; (offset.x &lt;= 1.0) &amp;&amp; (offset.y >= 0.0) &amp;&amp; (offset.y &lt;= 1.0) ) {
+                shadow = unpack(texture2D(shadowMap, offset));
+                
+                if ( depth.z > shadow ){
+                    colour += vColour * 0.1;
+                } else {
+                    colour += vColour;
+                }
+                
+                ++count;
+              // }
+          }
+        }
+         
+        if ( count > 0 ){
+          colour /= float(count);
+        } else
+          colour = vColour;
+
+        gl_FragColor.x = max(0.0, min(1.0, textureMap.x * colour.x));
+        gl_FragColor.y = max(0.0, min(1.0, textureMap.y * colour.y));
+        gl_FragColor.z = max(0.0, min(1.0, textureMap.z * colour.z));
+        gl_FragColor.w = textureMap.a * uAlpha;
+
+      }
+    }
+  </fragment>
+  
+  <vertex>
+    precision highp float;
+    
+    uniform float uEyeSign;
+    uniform float uEyeSeparation;
+    uniform float uConvergence;
+    uniform float uTerrainCoefficient;
+    
+    uniform sampler2D uTerrain;
+
+    uniform bool uUseTerrain;
+    uniform bool uStereoMode;
+    
+    attribute vec3 aVertexPosition;
+    attribute vec2 aTextureCoord;
+    attribute vec3 aVertexNormal;
+    
+    uniform mat3 uNMatrix;
+    uniform mat4 uCameraProjMatrix;
+    uniform mat4 uCameraViewMatrix;
+    uniform mat4 uLightViewMat;
+    uniform mat4 uLightProjwMat;
+    uniform mat4 uModelMatrix;
+    
+    uniform vec3 uCameraOrigin;
+    uniform vec3 uLightVec;
+
+    varying vec2 vTextureCoord;
+    varying vec4 vPosition;
+    varying vec3 vWorldNormal;
+    varying vec4 vWorldPosition;
+    varying vec4 vPositionVS;
+    varying vec4 vPositionLight;
+    
+    vec3 crossProduct (vec3 v1, vec3 v2){
+      float x = v1.y * v2.z - v1.z * v2.y;
+      float y = v1.z * v2.x - v1.x * v2.z;
+      float z = v1.x * v2.y - v1.y * v2.x;
+      vec3 product = vec3(x, y ,z);
+      return product;
+    }
+    
+    mat4 gluLookAt(vec3 eye, vec3 target, vec3 up){
+      vec3 vz = normalize(eye - target);
+      vec3 vx = normalize(crossProduct(up, vz));
+      vec3 vy = crossProduct(vz, vx);
+      mat4 inverseViewMatrix = mat4(vec4(vx, 0.0), vec4(vy, 0.0), vec4(vz, 0.0), vec4(eye, 1.0));
+      return inverseViewMatrix;
+    }
+    
+    const mat4 biasMat = mat4(0.5, 0.0, 0.0, 0.0,
+                              0.0, 0.5, 0.0, 0.0,
+                              0.0, 0.0, 1.0, 0.0,
+                              0.5, 0.5, 0.0, 1.0);
+                          
+    void main(void){
+      vWorldPosition = vec4(aVertexPosition, 1.0);
+      vec3 vectorNormal = aVertexNormal;
+      
+      if ( uStereoMode ){
+        float convergence = length(uCameraOrigin - vWorldPosition.xyz) * 0.01;
+        vWorldPosition.x += uEyeSign * uEyeSeparation * (vWorldPosition.w + convergence);
+      }
+      
+      if ( uUseTerrain ){
+        vec4 height_rgba = texture2D( uTerrain, aTextureCoord );//+ vec2( 0.5 ) );
+        float height = (height_rgba.r + height_rgba.b + height_rgba.g) * uTerrainCoefficient - 20.0;
+        vWorldPosition = vec4( aVertexPosition.x, aVertexPosition.y, height, 1.0 );
+        vectorNormal = crossProduct( vectorNormal, vec3( aVertexPosition.x, aVertexPosition.y, height ) );
+      }
+
+      vWorldNormal = uNMatrix * aVertexNormal;
+      
+      vTextureCoord = aTextureCoord;
+      
+      vPosition = uCameraProjMatrix * uCameraViewMatrix * uModelMatrix * vWorldPosition;
+      vPositionLight = biasMat * uLightProjwMat * uLightViewMat * vWorldPosition;
+
+      gl_Position = vPosition;
+    }
+  </vertex> 
+</shader>

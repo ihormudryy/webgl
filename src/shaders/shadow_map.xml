@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<shader>
+
+  <fragment>
+    precision highp float;
+    
+    uniform sampler2D shadowMap;
+    
+    varying vec2 vTextureCoord;
+    varying vec4 vPosition;
+    
+    vec4 pack (float depth){
+      const vec4 bitSh = vec4(256 * 256 * 256,
+                               256 * 256,
+                               256,
+                               1.0);
+      const vec4 bitMsk = vec4(0,
+                               1.0 / 256.0,
+                               1.0 / 256.0,
+                               1.0 / 256.0);
+      vec4 comp = fract(depth * bitSh);
+      comp -= comp.xxyz * bitMsk;
+      return comp;
+    }
+    
+    void main (void){   
+      vec4 textureColor = texture2D( shadowMap, vTextureCoord );
+      vec3 depth = vPosition.xyz / vPosition.w;
+      gl_FragColor = pack(depth.z);               
+    }
+  </fragment>
+  
+  <vertex>
+    precision highp float;
+
+    attribute vec3 aVertexPosition;
+    attribute vec2 aTextureCoord;
+    attribute vec3 aVertexNormal;
+    
+    uniform mat3 uNMatrix;
+    uniform mat4 uCameraProjMatrix;
+    uniform mat4 uModelMatrix;
+    
+    //Light
+    uniform mat4 uCameraViewMatrix;
+    varying vec2 vTextureCoord;
+    varying vec4 vPosition;
+    varying vec3 vWorldNormal;
+    varying vec4 vWorldPosition;
+
+    void main (void){
+      vWorldPosition = vec4(aVertexPosition, 1.0);
+      vWorldNormal = uNMatrix * aVertexNormal;
+      vTextureCoord = aTextureCoord;
+      vPosition = uCameraProjMatrix * uCameraViewMatrix * uModelMatrix * vWorldPosition;
+      gl_Position = vPosition;
+    }
+  </vertex> 
+</shader>

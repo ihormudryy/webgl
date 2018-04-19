@@ -1,48 +1,61 @@
-var engine = engine || {};
+var Engine = Engine || {};
 
 'use strict';
 
-engine.prototype.Camera = function(properties) {
-  var Camera = {};
+Engine.prototype.Camera = function(engine, properties) {
+  var engine = engine;
   
-  Camera.hitTest = false;
-  Camera.factor = 64;
-  Camera.fov = 80;
-  Camera.zNear = 0.1;
-  Camera.zFar = 100000;
-  Camera.pos = {'x': 0, 'y': 0, 'z': -30};
-  Camera.origin = {'origX': 0, 'origY': 0, 'origZ': 0};
-  Camera.tilt = 280;
-  Camera.roll =  0;
-  Camera.heading = 33;
-  Camera.blending = true;
-  Camera.SRC_ALPHA = 5;
-  Camera.useLighting = true;
-  Camera.MODE = 4;
-  Camera.showTextureMap = true;
-  Camera.useSpecularMap = true;
-  Camera.materialShininess = 32.0;
-  Camera.ambientColor = [ 42, 42, 42 ];
-  Camera.specularColor = [ 4, 8, 4 ];
-  Camera.pointLightingDiffuse = [ 102, 91, 91 ];
-  Camera.bgColor = [ 135, 204, 250, 1.0 ];
-  Camera.lightDirection = {lightDirectionX: -10, lightDirectionY: 10, lightDirectionZ: -0.4};
+  var camera = function(){
+    var that = this;
+    var defaultProperties = {
+       fov: {val: 90, step: 1, min: 0, max: 160, name: "Field Of View"},
+       blending : true,
+       SRC_ALPHA : {val: 1, step: 0.01, min: 0, max: 1, name: "Alpha blending"},
+       MODE : { val: 4, 
+                list:{ 
+                  "POINTS": 0, 
+                  "LINE_STRIP": 1, 
+                  "LINE_LOOP": 2, 
+                  "LINES": 3, 
+                  "TRIANGLE_STRIP": 4, 
+                  "TRIANGLE_FAN": 5, 
+                  "TRIANGLES": 6
+                }, 
+                name: "Field Of View"},
+       useTextureAtlas : true,
+       useTerrain : false,
+       stereoscopicMode : false,
+       stereo_Separation : {val: 2, step: 0.01, min: 0, max: 5, name: "Stereo Separation"},
+       stereo_Convergence : {val: 0, step: 0.001, min: 0, max: 1, name: "Stereo Convergence"},
+       terrainCoefficient : {val: 1.0, step: 1, min: 0, max: 50, name: "Terrain Coefficient"},
+       // bgColor : [ 135, 204, 250, 1.0 ]
+       bgColor : [ 0, 0, 0, 1.0 ]
+    };
+    that.controls = new engine.objectControl("Camera", defaultProperties, true);
+    for (var i in properties){
+      if (properties[i] != that[i])
+        that[i] = properties[i];
+    }
+    engine.controlManager.bindCameraControls(that);
+    that.controls.setPosition({x: -0.5, y: 1.5, z: -16, tilt: -48, heading: 225, roll: 0});
+    that.zNear = 0.1;
+    that.zFar = 1000;
+    that.hitTest = false;
+    return that;
+  };
   
-  for (var i in properties){
-    if (properties[i] != Camera[i])
-      Camera[i] = properties[i];
-  }
   
-  Camera.degToRad = function(degres){
+  camera.prototype.degToRad = function(degres){
     return (degres * Math.PI/180);
   };
   
-  Camera.radToDeg = function(radinans){
+  camera.prototype.radToDeg = function(radinans){
     return (radinans * 180 / Math.PI);
   };
   
-  Camera.set = function (property, value) { 
-    var self = this;
+  camera.prototype.set = function (property, value) { 
+    var that = this;
+    var self = that.controls.position;
     var axis;
     if (property == "tilt")
       axis = "y";
@@ -50,30 +63,32 @@ engine.prototype.Camera = function(properties) {
       axis = "x";
       
     if (self.hitTest && axis){
-      var offsetAngle = Math.atan(self.pos.z * Math.cos(self[property]) / self.pos[axis]);
+      var offsetAngle = Math.atan(self.position.z * Math.cos(self[property]) / self.position[axis]);
       var realZ = Math.cos(self.degToRad(self[property] + value));
-      var zValue = self.pos.z * realZ / Math.cos(offsetAngle) + self.pos[axis];
+      var zValue = self.position.z * realZ / Math.cos(offsetAngle) + self.position[axis];
       if (zValue < 0 && self[property] + value < 0) 
         self[property] += value;
     } else
       self[property] += value;
       
-    self[property] %= 360;
+    self[property] %= 360; 
   };
   
-  Camera.setZ = function (value) { 
-    var self = this;
-    var delta = Math.log(Math.abs(self.pos.z));
+  camera.prototype.setZ = function (value) { 
+    var that = this;
+    var self = that.controls;
+    var delta = Math.log(Math.abs(self.position.z));
     if (self.hitTest){
-      if (self.pos.z + value < 0) 
-        self.pos.z += value * ((delta >= 1) ? delta : 1 );
+      if (self.position.z + value < 0) 
+        self.position.z += value * ((delta >= 1) ? delta : 1 );
     }
     else
-      self.pos.z += value * ((delta >= 1) ? delta : 1 );
+      self.position.z += value * ((delta >= 1) ? delta : 1 );
   };
   
-  Camera.setPosition = function (position, value) { 
-    var self = this;
+  camera.prototype.setPosition = function (position, value) { 
+    var that = this;
+    var self = that.controls;
     var rotation;
     if (position == "x")
       rotation = "roll";
@@ -81,15 +96,51 @@ engine.prototype.Camera = function(properties) {
       rotation = "tilt";
     if (self.hitTest && position){
       var cos = Math.cos(self.degToRad(self[rotation]));
-      var z = self.pos.z * cos;
-      if (z + Math.abs(10 * value + self.pos[position]) < 0) 
-        self.pos[position] += value * Math.log(Math.abs(self.pos[position]));
+      var z = self.position.z * cos;
+      if (z + Math.abs(10 * value + self.position[position]) < 0) 
+        self.position[position] += value * Math.log(Math.abs(self.position[position]));
     }
     else {
-      var delta = Math.log(Math.abs(self.pos[position]));
-      self.pos[position] += value * ((delta >= 1) ? delta : 1 );
+      var delta = Math.log(Math.abs(self.position[position]));
+      self.position[position] += value * ((delta >= 1) ? delta : 1 );
     }
   };
-
-  return Camera;
+  
+  camera.prototype.getFieldOfView = function () { 
+    var that = this;
+    return that.controls.properties.fov.val;
+  };
+  
+  camera.prototype.getAttribute = function(attrName) { 
+    var that = this;
+    var value;
+    if (that.controls.properties[attrName] !== undefined){
+      if (that.controls.properties[attrName].val !== undefined)
+        value = that.controls.properties[attrName].val;
+      else  
+        value = that.controls.properties[attrName];
+    } else if (that.controls.position[attrName] !== undefined){
+      if(that.controls.position[attrName].val !== undefined)
+        value = that.controls.position[attrName].val;
+      else  
+        value = that.controls.position[attrName];
+    } else if (that.controls[attrName] !== undefined){
+      if(that.controls[attrName].val !== undefined)
+        value = that.controls[attrName].val;
+      else  
+        value = that.controls[attrName];
+    } else if (that[attrName] !== undefined){
+      if(that[attrName].val !== undefined)
+        value = that[attrName].val;
+      else  
+        value = that[attrName];
+    }
+    return value;
+  };
+  
+  camera.prototype.getCamJSON = function(){
+    return JSON.stringify(that.controls);
+  }
+  
+  return new camera();
 };

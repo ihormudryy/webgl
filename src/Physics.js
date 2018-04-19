@@ -1,8 +1,8 @@
-var engine = engine || {};
+var Engine = Engine || {};
 
 'use strict';
 
-engine.prototype.PhysicManager = function (engine) {
+Engine.prototype.PhysicManager = function (engine) {
   var physicsManager = {};
   var mat4 = engine.mat4;
   var vec3 = engine.vec3;
@@ -10,9 +10,7 @@ engine.prototype.PhysicManager = function (engine) {
   physicsManager.vecX = [1,0,0];
   physicsManager.vecY = [0,1,0];
   physicsManager.vecZ = [0,0,1];
-  physicsManager.moveInCameraSpace = [0,0,-25];
   physicsManager.moveInWorldSpace = [];
-  physicsManager.rotateInCameraSpace = [-80,0,0];
   physicsManager.rotateInWorldSpace = [];
   physicsManager.speed = .1;
   physicsManager.acceleration = 0;
@@ -50,31 +48,27 @@ engine.prototype.PhysicManager = function (engine) {
     return [that.orientationMatrix[12], that.orientationMatrix[13], that.orientationMatrix[14]];
   }
   
-  function objectSpace(timeStamp) { 
+  physicsManager.mvTransormation = function( mvMat, mesh ) { 
     var that = this;
    
-    objectSpaceMat = orientationMatrix;
-    var xAnglePlane = Math.PI * that.rotateInCameraSpace[0] / 180;
-    var yAnglePlane = Math.PI * that.rotateInCameraSpace[1] / 180;
-    var zAnglePlane = Math.PI * that.rotateInCameraSpace[2] / 180;
+    var spaceMat = (mvMat) ? mvMat : mat4.identity();
+    var object = (mesh) ? mesh : camera;
     
-    mat4.translate(objectSpaceMat, that.moveInCameraSpace);
+    object.tilt = (object.tilt) ? object.tilt : 0;
+    object.roll = (object.roll) ? object.roll : 0;
+    object.heading = (object.heading) ? object.heading : 0;
     
-    mat4.rotate(objectSpaceMat, xAnglePlane, that.vecX);
-    mat4.rotate(objectSpaceMat, yAnglePlane / 180, that.vecY);
-    mat4.rotate(objectSpaceMat, zAnglePlane / 180, that.vecZ);
-    /*
-    var move = [];
-    time *= .1;
-    move[0] = -Math.sin(zAnglePlane) * that.speed * time;
-    move[1] = Math.sin(xAnglePlane) * that.speed * time;
-    move[2] = -Math.cos(zAnglePlane) * that.speed * time;
-    mat4.translate(objectSpaceMat, move);
-    mat4.rotate(objectSpaceMat, xAnglePlane - Math.PI * .5, that.vecX);
-    mat4.rotate(objectSpaceMat, yAnglePlane, that.vecY);
-    mat4.rotate(objectSpaceMat, zAnglePlane, that.vecZ);
-    */
-    return objectSpaceMat;
+    var xAnglePlane = Math.PI * object.tilt / 180;
+    var yAnglePlane = Math.PI * object.roll / 180;
+    var zAnglePlane = Math.PI * object.heading / 180;
+    
+    mat4.translate(spaceMat, [object.pos.x, object.pos.y, object.pos.z]);
+    
+    mat4.rotate(spaceMat, xAnglePlane, [1, 0, 0]);
+    mat4.rotate(spaceMat, yAnglePlane, [0, 1, 0]);
+    mat4.rotate(spaceMat, zAnglePlane, [0, 0, 1]);
+
+    return spaceMat;
   };
   
   function vectorMat(angles){
@@ -94,6 +88,27 @@ engine.prototype.PhysicManager = function (engine) {
     vecMoveMatrix[10] = cos(b);
   };
   
+  physicsManager.lightMvTransform = function(mvMat) { 
+    var that = this;
+   
+    var spaceMat = (mvMat) ? mvMat : mat4.identity();
+    
+    var heading = camera.lightDirection.lightDirectionX;
+    var roll = camera.lightDirection.lightDirectionY;
+    var tilt = camera.lightDirection.lightDirectionZ;
+    
+    var xAnglePlane = Math.PI * heading / 180;
+    var yAnglePlane = Math.PI * roll / 180;
+    var zAnglePlane = Math.PI * tilt / 180;
+    
+    mat4.translate(spaceMat, [camera.lightOrigin.lightX, camera.lightOrigin.lightY, camera.lightOrigin.lightZ]);
+    mat4.rotate(spaceMat, heading, [1, 0, 0]);
+    mat4.rotate(spaceMat, roll, [0, 1, 0]);
+    mat4.rotate(spaceMat, tilt, [0, 0, 1]);
+
+    return spaceMat;
+  }
+  /*
   function cameraSpace(timeStamp) { 
     var that = this;
     var time = 0;
@@ -122,8 +137,8 @@ engine.prototype.PhysicManager = function (engine) {
     }
     return orientationMatrix;
   };
-
-  function freeSpace(time){
+*/
+  function cameraSpace(){
     var that = this;
     updateProperties();
 
@@ -154,8 +169,8 @@ engine.prototype.PhysicManager = function (engine) {
   
   physicsManager.setFreeCameraMode = function(){
     this.mode = 'camera';
-    this.objectSpace = freeSpace;
-    this.cameraSpace = freeSpace;
+    //this.objectSpace = objectSpace;
+    //this.cameraSpace = freeSpace;
   }
   
   physicsManager.roteteAroundPivot = function(speed){

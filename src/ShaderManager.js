@@ -1,14 +1,12 @@
-var engine = engine || {};
+var Engine = Engine || {};
 
 'use strict';
 
-engine.prototype.ShaderManager = function(){
-  
-  var shaderManager = {};
-  var shaderSrc = "/src/shader.xml";
+Engine.prototype.ShaderManager = function(){
  
-  shaderManager.initShaders = function(){
+  function shaderManager(){
     var that = this;
+    that.shaders = [];
     var element = document.getElementById("webgl");
     
     if (!element){
@@ -17,7 +15,6 @@ engine.prototype.ShaderManager = function(){
       element.id = "webgl";
       body.appendChild(element);
     };
-    
     
     var width = window.innerWidth;
     var height = window.innerHeight;
@@ -58,40 +55,47 @@ engine.prototype.ShaderManager = function(){
     
     canvas.addEventListener("webglcontextrestored", restoreWebgl, false);  
     
-    that.getWebglContext(canvas);
+    return that.getWebglContext(canvas);
   }
   
   /*
    * Get Webgl context 
    */
-  shaderManager.getWebglContext = function(canvas){
+  shaderManager.prototype.getWebglContext = function(canvas){
     var that = this;
     var width = window.innerWidth;
     var height = window.innerHeight;
     var types = ["experimental-webgl", "webgl", "webkit-3d", "moz-webgl"];
-    
+    var gl;
     for (var i in types){
-      that.gl = canvas.getContext(types[i]) || that.gl;
+      gl = canvas.getContext(types[i]) || gl;
     };
     
-    if (!that.gl){
+    if (!gl){
       console.error('Webgl is faled to start! Please restart browser and try again');
       alert('Webgl is faled to start! Please restart browser and try again');
       return undefined;
     }
     
-    that.gl.id = Math.floor(Math.random(999)* 100);
-    that.gl.viewportWidth = width;
-    that.gl.viewportHeight = height;
-
-    that.loadShaders();
+    gl.id = Math.floor(Math.random(999)* 100);
+    gl.viewportWidth = width;
+    gl.viewportHeight = height;
+    that.gl = gl;
+    
+    return that;
   }
   
   /* 
-   * Get shaders 
+   * Get shader 
+   *
+   * @shaderName [String] - Optional
+   *
    */
-  shaderManager.loadShaders = function(){
+  shaderManager.prototype.loadShader = function(shaderName, folder, name){
     var that = this;
+    var progamName = (name) ? name : shaderName.split('.xml')[0];
+    var src = (folder) ? folder : 'src/shaders';
+    var shaderSrc = src + '/' + shaderName;
     
     function initializeShadersAfterDonwload(data){
       var shaders = {};
@@ -108,16 +112,16 @@ engine.prototype.ShaderManager = function(){
         }
         
         if (!shaders.fragment || !shaders.vertex){
-          element.innerHTML = 'Failed to load shader!!!';
+          element.innerHTML = 'Failed to load shader';
           return underfined;
         };      
       }
       
-      that.compileShaders(shaders);
+      that.compileShaders(shaders, progamName);
     }
     
     /* 
-     * Load shaders from XML file using asynchronus requests 
+     * Load shaders from XML file using asynchronous requests 
      */
     var xmlhttp = new XMLHttpRequest();
 
@@ -150,43 +154,45 @@ engine.prototype.ShaderManager = function(){
   /*
    *  Complile shaders 
    */
-  shaderManager.compileShaders = function(_shaders){    
+  shaderManager.prototype.compileShaders = function(_shaders, _name){    
     var that = this;
     var gl = that.gl;
     var shaders_cache = new Array();
     
     for (var sh in _shaders){
         var type = sh.toUpperCase() + '_SHADER';
-        _currentShader = gl.createShader(gl[type]);
+        var _currentShader = gl.createShader(gl[type]);
         shaders_cache.push(_currentShader);
         gl.shaderSource(_currentShader, _shaders[sh]);
         gl.compileShader(_currentShader);
     }
     
-    that.createAndAttachProgramToShader(shaders_cache);
+    that.createAndAttachProgramToShader(shaders_cache, _name);
   }
   
   /*
    *  Create program 
    */
-  shaderManager.createAndAttachProgramToShader = function(shadersCache){  
+  shaderManager.prototype.createAndAttachProgramToShader = function(shadersCache, _name){  
     var that = this;
     var gl = that.gl;
+    var _program = gl.createProgram();
+    that.shaders.push(_program);
+    _program.name = _name;
     
-    that.shaderProgram = gl.createProgram();
-    if (that.shaderProgram){
-      that.shaderProgram.id = Math.floor(Math.random(212)* 100);
+    if ( _program ){
+      _program.id = Math.floor(Math.random(212)* 100);
       for (var s in shadersCache){
           var shader = shadersCache[s];
           if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
             console.error('Error' + gl.getShaderInfoLog(shader));
             return null;
           } else {
-            gl.attachShader(that.shaderProgram, shader);
+            gl.attachShader( _program, shader );
           }
       }
       
-      that.linkAndUseProgram(that.shaderProgram);
+      that.linkAndUseProgram( _program );
     } else {
       var error = 'Could not get shader program. Please restart the browser.'
       console.error(error);
@@ -198,64 +204,63 @@ engine.prototype.ShaderManager = function(){
   /* 
    * Link program
    */
-  shaderManager.linkAndUseProgram = function(){ 
+  shaderManager.prototype.linkAndUseProgram = function(program){ 
     var that = this;
     var gl = that.gl;
-    var shaderProgram = that.shaderProgram;
 
-    gl.linkProgram(shaderProgram);
-    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
       console.error("Could not initialise shader");
       return null;
     } else {
-      gl.useProgram(shaderProgram);
+      gl.useProgram(program);
     }
     
-    that.activateAttributes(shaderProgram);
-    that.activateUniforms(shaderProgram);
+    that.activateAttributes(program);
+    that.activateUniforms(program);
     that.setupParameters();
   }
   
   /* 
    * Activate attributes
    */
-  shaderManager.activateAttributes = function(){ 
+  shaderManager.prototype.activateAttributes = function(program){ 
     var that = this;
     var gl = that.gl;
-    var shaderProgram = that.shaderProgram;
     
-    var attribCount = gl.getProgramParameter(shaderProgram, gl.ACTIVE_ATTRIBUTES);
+    var attribCount = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
+    program.attributes = {};
     for (var i = 0; attribCount > i; i++){
-      var info = gl.getActiveAttrib(shaderProgram, i);
-      shaderProgram[info.name] = gl.getAttribLocation(shaderProgram, info.name);
-      gl.enableVertexAttribArray(shaderProgram[info.name]);
+      var info = gl.getActiveAttrib(program, i);
+      program.attributes[info.name] = gl.getAttribLocation(program, info.name);
+      gl.enableVertexAttribArray(program.attributes[info.name]);
     }
   }
   
   /* 
    * Activate attributes
    */
-  shaderManager.activateUniforms = function(){ 
+  shaderManager.prototype.activateUniforms = function(program){ 
     var that = this;
     var gl = that.gl;
-    var shaderProgram = that.shaderProgram;
     
-    var unifCount = gl.getProgramParameter(shaderProgram, gl.ACTIVE_UNIFORMS);
+    var unifCount = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
+    program.uniforms = {};
     for (var i = 0; unifCount > i; i++){
-      var info = gl.getActiveUniform(shaderProgram, i);
-      shaderProgram[info.name] = gl.getUniformLocation(shaderProgram, info.name);
-      gl.enableVertexAttribArray(shaderProgram[info.name]);
+      var info = gl.getActiveUniform(program, i);
+      program.uniforms[info.name] = gl.getUniformLocation(program, info.name);
+      gl.enableVertexAttribArray(program.uniforms[info.name]);
     }
   }
  
   /* 
    * Setup parameters
    */
-  shaderManager.setupParameters = function(){ 
+  shaderManager.prototype.setupParameters = function(){ 
     var that = this;
     var gl = that.gl;
     
-    gl.clearColor(0.53, 0.8, 0.98, 1.0);
+    gl.clearColor(0, 0, 0, 1.0);
     gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.STENCIL_TEST);
@@ -263,7 +268,7 @@ engine.prototype.ShaderManager = function(){
     gl.depthFunc(gl.LEQUAL);
   }
   
-  shaderManager.checkBrowserCompatibility = function(){
+  shaderManager.prototype.checkBrowserCompatibility = function(){
     var agent = navigator.userAgent;
     var supportedBroswers = ['Chrome', 'Firefox', 'Opera', 'Safari'];
     var notSupported = true;
@@ -274,5 +279,5 @@ engine.prototype.ShaderManager = function(){
     return notSupported;
   }
   
-  return shaderManager;
+  return new shaderManager();
 };

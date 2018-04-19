@@ -2,6 +2,8 @@
 bin/
 bin-debug/
 bin-release/
+compiled/
+*.jar
 
 # Other files and folders
 .settings/
