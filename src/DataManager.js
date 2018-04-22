@@ -41,8 +41,8 @@ Engine.prototype.DataManager = function (_engine) {
     "B-2_Spirit",
     "Eurofighter-2000_Typhoon",
     "Saab-39_Gripen",
-    // "Shuttle",
-    // "Boeing 747"
+    "Shuttle",
+    "Boeing 747"
   ];
   
   dataManager.staticResources = 0;
@@ -342,7 +342,7 @@ Engine.prototype.DataManager = function (_engine) {
   };
   
   dataManager.generateSurface = function(zDepth){
-    var z = (zDepth !== undefined) ? zDepth : -20;
+    var z = (zDepth !== undefined) ? zDepth : -3;
     var length = 100;
     var coeficient = 1;
     var indexMat = {};
@@ -386,7 +386,7 @@ Engine.prototype.DataManager = function (_engine) {
       }
     }
     
-    /*                        
+    /*                
     
     var texture_mat = [
       0.0, 0.0,
@@ -406,7 +406,7 @@ Engine.prototype.DataManager = function (_engine) {
       
     var vertexArray = new Array();
     var textureArray = new Array();
-    
+    var half_length = length / 2;
     for (var y = 0; y <= length; y++){
       for (var x = 0; x <= length; x++){
         for (var i = 0; i < vertex_mat.length; i += 2){
@@ -422,8 +422,8 @@ Engine.prototype.DataManager = function (_engine) {
     for (var ii = 0; ii < vertexArray.length/18; ii++){
       for (var qq = 0; qq < texture_mat.length; qq++)
         textureArray.push(texture_mat[qq]);
-    }  */
-    
+    }
+    */
     var bufferPool = {};
     bufferPool.vertexBuffer = bufferManager.initBuffer(vertexArray);
     bufferPool.textureBuffer = bufferManager.initBuffer(textureArray);
@@ -433,10 +433,10 @@ Engine.prototype.DataManager = function (_engine) {
     
     bufferPool.childNodes = new Array();
     bufferPool.childNodes[0] = {};
-    bufferPool.childNodes[0].gl_Texture = textureManager.createTexture("data/ground.jpg");
+    bufferPool.childNodes[0].gl_Texture = textureManager.createTexture("data/ground_new.jpg");
     
-    bufferPool.terrain = textureManager.createTexture("data/Heightmap.png");
-    bufferPool.controls = new _engine.objectControl("Surface");
+    //bufferPool.terrain = textureManager.createTexture("data/Heightmap.png");
+    //bufferPool.controls = new _engine.objectControl("Surface");
     this.staticResources++;
     
     bufferPool.state = "ready";
@@ -670,10 +670,10 @@ Engine.prototype.DataManager = function (_engine) {
     var intervalID;
     
     var vertex_mat = [ 
-     -18.0,  41.0, 1.0, //2
-      18.0,  41.0, 1.0, //3
-      18.0,  41.0, 20.0, //0
-     -18.0,  41.0, 20.0 ]; //1
+     18.0,  -10.0, -2.0, //2
+     -18.0, -10.0, -2.0, //3
+     -18.0, -10.0, 20.0, //0
+     18.0,  -10.0, 20.0 ]; //1
     var texture_mat = [
       0.0,  0.0,
       1.0,  0.0,
@@ -803,7 +803,7 @@ Engine.prototype.DataManager = function (_engine) {
     light.power = {val: 0.7, step: 0.001, min: 0, max: 10, name: "LightPower"};
     light.adjust = {val: 0.0003, step: 0.000001, min: 0, max: 0.01, name: "Shadow Threshold"};
     light.controls = new _engine.objectControl( "Light", light, true );
-    light.controls.setPosition({x: 0, y:0, z: -33, tilt: 0, heading:0, roll: 0});  
+    light.controls.setPosition({x: 0, y:0, z: -33, tilt: 50, heading:0, roll: 0});  
     return light;    
   }
   
@@ -910,14 +910,16 @@ Engine.prototype.DataManager = function (_engine) {
   
     that.light = that.addLight();
     that.shadow = that.addShadow();
-    that.cube = dataManager.simpleCube();
-    that.add(that.generateSurface());
-    that.add(that.addModel(12));
+    //that.cube = dataManager.simpleCube();
+    //that.add(that.generateSurface());
+    that.add(that.addModel(0));
+
     // for (var i in that.resources)
     // for (var i = 0; i <= that.resources.length -1 ; i++)
     //that.add(that.addKitchenModel("kitchen", "Kitchen"));
     // that.add(dataManager.generateSky()); 
     // that.add(that.cube);
+
     //that.add(dataManager.addVideo());
   }
     

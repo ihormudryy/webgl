@@ -3,10 +3,9 @@
 <html lang="en-US">
 
 <head>
-    <meta http-equiv="Content-Security-Policy" content="default-src *; style-src 'sha256-GHOYEfEL6W5BcUCBVbXciLrMR+vuCsQlveJM1RtJgjc=' 'unsafe-inline'; script-src 'unsafe-inline' 'unsafe-eval' http://www.google.com">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta http-equiv="Content-Style-Type" content="text/css">
-    <title>Ihor Mudryy's Sandbox WebGL Engine</title>
+    <title>WebGL Engine</title>
     <style type="text/css">
       body{
         margin: 0;
@@ -60,16 +59,15 @@
 <script src="libs/stats.js"></script>
 <script src="src/resources.js"></script>
 
+<!--
+<script src="compiled/src/myEngine.max.js"></script>
+-->
 <body oncontextmenu="return false">
   <div id="loading"></div>
-  <video id="video">
+  <video id="video" muted>
   Your browser doesn't appear to support the HTML5 <code>&lt;video&gt;</code> element.
   </video>
   <div id = "fps"></div>
-  <select id="selection"></select>
-  <button id="select_button">Select</button>
-  <button id="game_mode">Game Mode</button>
-  <button id="free_camera">Free Camera Mode</button>
 </body>
 </html>
 

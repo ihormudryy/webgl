@@ -8,7 +8,6 @@ Engine.prototype.ControlManager = function () {
   controlManager.bindCameraControls = function (camera) { 
     var camera = camera;
     var canvas = document.getElementById('webgl');
-    // var canvas = document;
     var shift = false;
     var original = true;
     
@@ -20,43 +19,43 @@ Engine.prototype.ControlManager = function () {
     var mousedown = false;
     
     canvas.addEventListener('mousemove', function(evt){
-      if(evt.button==0 && mousedown){
+      if(evt.button==0 && evt.buttons==1 && mousedown){
         if (original){
-          if (evt.webkitMovementX)
-            camera.set('heading', (evt.webkitMovementX + evt.webkitMovementY)/2);
+          if (evt.movementX)
+            camera.set('heading', (evt.movementX + evt.movementY)/2);
           else if (evt.mozMovementX)
             camera.set('heading', (evt.mozMovementX + evt.mozMovementY)/2);
           
-          if (evt.webkitMovementY)
-            camera.set('tilt', evt.webkitMovementY);
+          if (evt.movementY)
+            camera.set('tilt', evt.movementY);
           else if (evt.mozMovementX)
             camera.set('tilt', evt.mozMovementY);
         } else {
           if (shift){
-            if (evt.webkitMovementX)
-              camera.set('heading', (evt.webkitMovementX + evt.webkitMovementY)/2);
+            if (evt.movementX)
+              camera.set('heading', (evt.movementX + evt.movementY)/2);
             else if (evt.mozMovementX)
               camera.set('heading', (evt.mozMovementX + evt.mozMovementY)/2);
           } else {
-            if (evt.webkitMovementX)
-              camera.set('roll', evt.webkitMovementX);
+            if (evt.movementX)
+              camera.set('roll', evt.movementX);
             else if (evt.mozMovementX)
               camera.set('roll', evt.mozMovementX);
             
-            if (evt.webkitMovementY)
-              camera.set('tilt', evt.webkitMovementY);
+            if (evt.movementY)
+              camera.set('tilt', evt.movementY);
             else if (evt.mozMovementX)
               camera.set('tilt', evt.mozMovementY);
           }
         }
-      } else if(evt.button==2 && mousedown){
-        if (evt.webkitMovementX)
-          camera.setPosition('x', .01 * evt.webkitMovementX);
+      } else if(evt.button==0 && evt.buttons==2 && mousedown){
+        if (evt.movementX)
+          camera.setPosition('x', .01 * evt.movementX);
         else if (evt.mozMovementX)
           camera.setPosition('x', .01 * evt.mozMovementX);
           
-        if (evt.webkitMovementY)
-          camera.setPosition('y', -.01 * evt.webkitMovementY);
+        if (evt.movementY)
+          camera.setPosition('y', -.01 * evt.movementY);
         else if (evt.mozMovementY)
           camera.setPosition('y', -.01 * evt.mozMovementY);
       }
