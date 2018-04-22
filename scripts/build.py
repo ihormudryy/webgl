@@ -40,7 +40,7 @@ def mapBuild():
     
     array = {}
     for file in shaderFiles:
-        dom = parse(realPath(srcDir + file))
+        dom = parse(os.path.join(workspace, file))
         array[file] = {}
         array[file]["fragment"] = dom.getElementsByTagName("fragment")[0].firstChild.data
         array[file]["vertex"] = dom.getElementsByTagName("vertex")[0].firstChild.data
@@ -83,8 +83,8 @@ def mapBuild():
     min = open(realPath(destDir + minName), 'wb')
     min.write(min_text)
     min.close()
-    shutil.copy2(realPath(srcDir + 'shaders/shader.xml'), realPath(destDir + 'shaders/shader.xml'))
-    shutil.copy2(realPath(srcDir + 'shaders/shadow_map.xml'), realPath(destDir + 'shaders/shadow_map.xml'))
+    #shutil.copy2(realPath(srcDir + 'shaders/shader.xml'), realPath(destDir + 'shaders/shader.xml'))
+    #shutil.copy2(realPath(srcDir + 'shaders/shadow_map.xml'), realPath(destDir + 'shaders/shadow_map.xml'))
     print "Successfully compiled"
     
 def realPath(file):

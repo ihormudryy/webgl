@@ -13,8 +13,8 @@ function Engine(){
   _engine.mat3 = new this.Mat3();
   _engine.mat4 = new this.Mat4();
   _engine.shaderManager = new this.ShaderManager();
-  _engine.shaderManager.loadShader('shadow_map.xml', 'src/shaders', 'Shadow');
-  _engine.shaderManager.loadShader('shader.xml', 'src/shaders', 'Camera');
+  _engine.shaderManager.loadShader('shadow_map.xml', 'shaders', 'Shadow');
+  _engine.shaderManager.loadShader('shader.xml', 'shaders', 'Camera');
   _engine.objectControl = new this.ObjectControl(_engine);  
   _engine.physic = new this.PhysicManager(_engine);  
   _engine.controlManager = new this.ControlManager(_engine);

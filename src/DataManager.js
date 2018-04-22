@@ -65,7 +65,10 @@ Engine.prototype.DataManager = function (_engine) {
           } else {
             data = xmlhttp.responseText;
           }
-          data.state = "ready";
+          try{
+            data.state = "ready";
+          } catch(e){
+          }
           if (typeof callback === 'function') callback(data);
         } else {
           console.log("Data file not found");
@@ -911,7 +914,7 @@ Engine.prototype.DataManager = function (_engine) {
     that.light = that.addLight();
     that.shadow = that.addShadow();
     //that.cube = dataManager.simpleCube();
-    //that.add(that.generateSurface());
+    that.add(that.generateSurface());
     that.add(that.addModel(0));
 
     // for (var i in that.resources)
@@ -920,7 +923,7 @@ Engine.prototype.DataManager = function (_engine) {
     // that.add(dataManager.generateSky()); 
     // that.add(that.cube);
 
-    //that.add(dataManager.addVideo());
+    that.add(dataManager.addVideo());
   }
     
   return dataManager;

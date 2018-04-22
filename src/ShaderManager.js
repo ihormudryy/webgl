@@ -94,7 +94,7 @@ Engine.prototype.ShaderManager = function(){
   shaderManager.prototype.loadShader = function(shaderName, folder, name){
     var that = this;
     var progamName = (name) ? name : shaderName.split('.xml')[0];
-    var src = (folder) ? folder : 'src/shaders';
+    var src = (folder) ? folder : 'shaders';
     var shaderSrc = src + '/' + shaderName;
     
     function initializeShadersAfterDonwload(data){
@@ -112,7 +112,7 @@ Engine.prototype.ShaderManager = function(){
         }
         
         if (!shaders.fragment || !shaders.vertex){
-          element.innerHTML = 'Failed to load shader';
+          console.error('Failed to load shader');
           return underfined;
         };      
       }
@@ -138,7 +138,7 @@ Engine.prototype.ShaderManager = function(){
           } else {
             alert(xmlhttp.readyState);
             alert(xmlhttp.statuss);
-            element.innerHTML = "XML shaders are not found!";
+            console.error("XML shaders are not found!");
             return null;
           }
         }
