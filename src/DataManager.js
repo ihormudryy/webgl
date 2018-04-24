@@ -806,7 +806,7 @@ Engine.prototype.DataManager = function (_engine) {
     light.power = {val: 0.7, step: 0.001, min: 0, max: 10, name: "LightPower"};
     light.adjust = {val: 0.0003, step: 0.000001, min: 0, max: 0.01, name: "Shadow Threshold"};
     light.controls = new _engine.objectControl( "Light", light, true );
-    light.controls.setPosition({x: 0, y:0, z: -33, tilt: 50, heading:0, roll: 0});  
+    light.controls.setPosition({x: 0, y:0, z: -50, tilt: 0, heading:0, roll: 0});  
     return light;    
   }
   
@@ -915,7 +915,7 @@ Engine.prototype.DataManager = function (_engine) {
     that.shadow = that.addShadow();
     //that.cube = dataManager.simpleCube();
     that.add(that.generateSurface());
-    that.add(that.addModel(0));
+    that.add(that.addModel(14));
 
     // for (var i in that.resources)
     // for (var i = 0; i <= that.resources.length -1 ; i++)
@@ -923,7 +923,7 @@ Engine.prototype.DataManager = function (_engine) {
     // that.add(dataManager.generateSky()); 
     // that.add(that.cube);
 
-    that.add(dataManager.addVideo());
+    //that.add(dataManager.addVideo());
   }
     
   return dataManager;
